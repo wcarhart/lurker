@@ -6,6 +6,7 @@ echo '|    |___|  |  /|  | \/    <\  ___/|  | \/'
 echo '|_______ \____/ |__|  |__|_ \\___  >__|   '
 echo '        \/                 \/    \/       '
 
+# get master list of posts (500 total)
 POSTS=`curl -s https://hacker-news.firebaseio.com/v0/topstories.json`
 POSTS="${POSTS//[/}"
 POSTS="${POSTS//]/}"
@@ -13,6 +14,8 @@ POSTS=( ${POSTS//,/ } )
 
 # TODO: improve comments
 # TODO: refactor so it's a bit more readable
+# TODO: standardize colors so we don't have random ANSI sequences laying around
+# TODO: make standard color white
 
 # ---------------- GET POSTS ---------------- #
 # $1 is START_INDEX
@@ -26,11 +29,20 @@ get_posts() {
 }
 _get_posts() {
 	for i in `seq $1 $2` ; do
+		# Get post info
 		POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[$i]}".json?print=pretty`
-		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
 		TITLE=`echo $POST | jq .title`
+		DESCENDANTS=`echo $POST | jq .descendants`
+		AUTHOR=`echo $POST | jq .by`
+		SCORE=`echo $POST | jq .score`
+		TIME=`echo $POST | jq .time`
+		TIME=$(( `date +%s` - $TIME ))
+
+		# Append to display list
+		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
 		LIST="$LIST`clean_text $TITLE`\n"
-		# TODO: add author, timestamp, points
+		LIST="$LIST   `clean_text $SCORE` points by `clean_text $AUTHOR` `clean_text $TIME` seconds ago | `clean_text $DESCENDANTS` comments\n"
+		# TODO: fix time so it's actually readable
 	done
 	echo -ne "\033[2K\033[E"
 	echo -ne "$LIST"
@@ -43,7 +55,14 @@ get_thread() {
 	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
 	CHILDREN=( `echo $POST | jq .kids[]` )
 	TITLE=`echo $POST | jq .title`
+	DESCENDANTS=`echo $POST | jq .descendants`
+	AUTHOR=`echo $POST | jq .by`
+	SCORE=`echo $POST | jq .score`
+	TIME=`echo $POST | jq .time`
+	TIME=$(( `date +%s` - $TIME ))
+
 	echo -e "\033[92m`clean_text $TITLE`\033[0m"
+	echo "`clean_text $SCORE` points by `clean_text $AUTHOR` `clean_text $TIME` seconds ago | `clean_text $DESCENDANTS` comments"
 	_get_thread 0 "${CHILDREN[@]}"
 	# TODO: add spinner here
 }
@@ -76,7 +95,6 @@ _get_thread() {
 
 clean_text() {
 	# TODO: clean text more
-	# <p> and <br> should be line breaks
 	# extract links from <a> tags
 	CONTENT=`echo "$@" | sed \
 	-e 's/^"//' \
@@ -87,14 +105,6 @@ clean_text() {
 	-e 's/<p>/\\\n\\\n/g' \
 	-e 's/<br>/\\\n\\\n/g'`
 	echo -e "$CONTENT"
-}
-
-green() {
-	return
-}
-
-red() {
-	return
 }
 
 START_INDEX=0
@@ -112,8 +122,15 @@ while : ; do
 	if [[ $? -eq 0 ]] ; then
 		if [[ $KEY -lt 501  && $KEY -gt 0 ]] ; then
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $KEY - 1 ))]}".json?print=pretty`
+			DESCENDANTS=`echo $POST | jq .descendants`
+			AUTHOR=`echo $POST | jq .by`
+			SCORE=`echo $POST | jq .score`
+			TIME=`echo $POST | jq .time`
+			TIME=$(( `date +%s` - $TIME ))
+
 			echo -ne "${KEY}. "
 			echo "$(clean_text `echo $POST | jq .title`)"
+			echo "   `clean_text $SCORE` points by `clean_text $AUTHOR` `clean_text $TIME` seconds ago | `clean_text $DESCENDANTS` comments"
 		else
 			echo "Post index must be between 1 and 500"
 		fi
@@ -163,7 +180,12 @@ while : ; do
 			exit 0
 			;;
 		*)
-			echo "Unknown command $KEY"
+			if [[ "$KEY" == "" ]] ; then
+				DISP=""
+			else
+				DISP="'$KEY'"
+			fi
+			echo "Unknown command $DISP"
 			echo "Type 'help' for command list"
 			;;
 	esac
