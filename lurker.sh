@@ -113,11 +113,12 @@ _get_posts() {
 		TIME=$(( `date +%s` - $TIME ))
 		URL=`echo $POST | jq .url`
 		URL=`echo $URL | awk -F[/:] '{print $4}'`
+		TIME_TEXT=`cleanse_time $TIME`
 
 		# append to display list
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
 		LIST="$LIST$(green `clean_text $TITLE`) $(pink "($URL)")\n"
-		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)\n"
+		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)\n"
 		# TODO: fix time so it's actually readable
 	done
 	echo -ne "\033[2K\033[E"
@@ -125,6 +126,39 @@ _get_posts() {
 	LIST=""
 }
 # ---------------- END GET POSTS ---------------- #
+
+cleanse_time() {
+	# $1 is the time elapsed in seconds
+	if [[ $TIME -lt 60 ]] ; then
+		if [[ $TIME -eq 1 ]] ; then
+			TIME_TEXT="$TIME second ago"
+		else
+			TIME_TEXT="$TIME seconds ago"
+		fi
+	elif [[ $TIME -ge 60 && $TIME -lt 3600 ]] ; then
+		TIME=$(( $TIME / 60 ))
+		if [[ $TIME -eq 1 ]] ; then
+			TIME_TEXT="$TIME minute ago"
+		else
+			TIME_TEXT="$TIME minutes ago"
+		fi
+	elif [[ $TIME -ge 3600 && $TIME -lt 86400 ]]; then
+		TIME=$(( $TIME / 3600 ))
+		if [[ $TIME -eq 1 ]] ; then
+			TIME_TEXT="$TIME hour ago"
+		else
+			TIME_TEXT="$TIME hours ago"
+		fi
+	else
+		TIME=$(( $TIME / 86400 ))
+		if [[ $TIME -eq 1 ]] ; then
+			TIME_TEXT="$TIME day ago"
+		else
+			TIME_TEXT="$TIME days ago"
+		fi
+	fi
+	echo $TIME_TEXT
+}
 
 # ---------------- GET THREAD ---------------- #
 get_thread() {
@@ -142,18 +176,19 @@ get_thread() {
 	TIME=$(( `date +%s` - $TIME ))
 	URL=`echo $POST | jq .url`
 	URL=`echo $URL | awk -F[/:] '{print $4}'`
+	TIME_TEXT=`cleanse_time $TIME`
 
 	# display post header info
 	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
-	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)"
+	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)"
 
 	# start recursive comment tree traversal for thread
 	_get_thread 0 "${CHILDREN[@]}"
 	# TODO: add spinner here
 }
 _get_thread() {
-	# $0 is the depth of our recursion
-	# $1 is the list of children to traverse
+	# $1 is the depth of our recursion
+	# $2 is the list of children to traverse
 
 	# TODO: add timestamp
 	# TODO: limit number of comments
@@ -223,6 +258,7 @@ while : ; do
 	[ -n "$KEY" ] && [ "$KEY" -eq "$KEY" ] 2>/dev/null
 	if [[ $? -eq 0 ]] ; then
 		if [[ $KEY -lt 501  && $KEY -gt 0 ]] ; then
+			# get post info
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $KEY - 1 ))]}".json?print=pretty`
 			TITLE=`echo $POST | jq .title`
 			DESCENDANTS=`echo $POST | jq .descendants`
@@ -232,10 +268,12 @@ while : ; do
 			TIME=$(( `date +%s` - $TIME ))
 			URL=`echo $POST | jq .url`
 			URL=`echo $URL | awk -F[/:] '{print $4}'`
+			TIME_TEXT=`cleanse_time $TIME`
 
+			# display info
 			echo -ne "${KEY}. "
 			echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
-			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)"
+			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)"
 		else
 			echo "Post index must be between 1 and 500"
 		fi
