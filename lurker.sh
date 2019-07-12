@@ -111,9 +111,9 @@ _get_posts() {
 		SCORE=`echo $POST | jq .score`
 		TIME=`echo $POST | jq .time`
 		TIME=$(( `date +%s` - $TIME ))
+		TIME_TEXT=`cleanse_time $TIME`
 		URL=`echo $POST | jq .url`
 		URL=`echo $URL | awk -F[/:] '{print $4}'`
-		TIME_TEXT=`cleanse_time $TIME`
 
 		# append to display list
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
@@ -175,9 +175,9 @@ get_thread() {
 	SCORE=`echo $POST | jq .score`
 	TIME=`echo $POST | jq .time`
 	TIME=$(( `date +%s` - $TIME ))
+	TIME_TEXT=`cleanse_time $TIME`
 	URL=`echo $POST | jq .url`
 	URL=`echo $URL | awk -F[/:] '{print $4}'`
-	TIME_TEXT=`cleanse_time $TIME`
 
 	# display post header info
 	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
@@ -191,7 +191,6 @@ _get_thread() {
 	# $1 is the depth of our recursion
 	# $2 is the list of children to traverse
 
-	# TODO: add timestamp
 	# TODO: limit number of comments
 	# TODO: make comments default to white
 	local NUM=$1
@@ -209,7 +208,10 @@ _get_thread() {
 		# print comment and it's author
 		AUTHOR=`echo "$COMMENT" | jq .by`
 		COMMENT_TEXT=`echo "$COMMENT" | jq .text`
-		echo "$INDENT$(teal `clean_text $AUTHOR`:)"
+		TIME=`echo $POST | jq .time`
+		TIME=$(( `date +%s` - $TIME ))
+		TIME_TEXT=`cleanse_time $TIME`
+		echo "$INDENT$(teal "`clean_text $AUTHOR`") $(white "|") $(teal "$TIME_TEXT:")"
 		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
 
 		# calculate children to continue traversal
@@ -267,9 +269,9 @@ while : ; do
 			SCORE=`echo $POST | jq .score`
 			TIME=`echo $POST | jq .time`
 			TIME=$(( `date +%s` - $TIME ))
+			TIME_TEXT=`cleanse_time $TIME`
 			URL=`echo $POST | jq .url`
 			URL=`echo $URL | awk -F[/:] '{print $4}'`
-			TIME_TEXT=`cleanse_time $TIME`
 
 			# display info
 			echo -ne "${KEY}. "
