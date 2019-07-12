@@ -119,7 +119,6 @@ _get_posts() {
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
 		LIST="$LIST$(green `clean_text $TITLE`) $(pink "($URL)")\n"
 		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)\n"
-		# TODO: fix time so it's actually readable
 	done
 	echo -ne "\033[2K\033[E"
 	echo -ne "$LIST"
@@ -162,8 +161,10 @@ cleanse_time() {
 
 # ---------------- GET THREAD ---------------- #
 get_thread() {
+	# $1 is the post ID
+
 	# get post info
-	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
+	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $1 - 1 ))]}".json?print=pretty`
 	CHILDREN=( )
 	if echo "$POST" | jq -e 'has("kids")' > /dev/null; then
 			CHILDREN=( `echo $POST | jq .kids[]` )
@@ -287,6 +288,10 @@ while : ; do
 			ID="${KEY#read*}"
 			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
 			if [[ $? -ne 0 ]] ; then
+				echo "Post index must be a number"
+				continue
+			fi
+			if [[ $ID -lt 0 || $ID -gt 500 ]] ; then
 				echo "Post index must be between 1 and 500"
 				continue
 			fi
@@ -310,12 +315,30 @@ while : ; do
 			fi
 			;;
 		open*)
-			#TODO: implement open in default web browser
+			ID="${KEY#open*}"
+			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
+			if [[ $? -ne 0 ]] ; then
+				echo "Post index must be a number"
+				continue
+			fi
+			if [[ $ID -lt 0 || $ID -gt 500 ]] ; then
+				echo "Post index must be between 1 and 500"
+				continue
+			fi
+			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
+			URL=`echo $POST | jq .url`
+			if [[ `uname -s` == "Darwin" ]] ; then
+				open `echo $URL | sed -e 's/"//g'` 
+			else
+				echo "Sorry, can't open a web browser for this operating system. Here's the link you'd like to open:"
+				echo "  $URL" | sed -e 's/"//g'
+			fi
 			;;
 		h|help|list)
 			echo "Available commands:"
 			echo "  help      - show this help menu"
 			echo "  read <ID> - open the comment thread for post ID"
+			echo "  open <ID> - open the URL for the post ID in your default browser"
 			echo "  <ID>      - get the title for post ID"
 			echo "  back      - show the previous list of stories again"
 			echo "  more      - show the next 10 posts (up to 500)"
