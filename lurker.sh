@@ -340,9 +340,9 @@ while : ; do
 			echo "  read <ID> - open the comment thread for post ID"
 			echo "  open <ID> - open the URL for the post ID in your default browser"
 			echo "  <ID>      - get the title for post ID"
-			echo "  back      - show the previous list of stories again"
 			echo "  more      - show the next 10 posts (up to 500)"
 			echo "  less      - show the previous 10 posts"
+			echo "  back      - show the previous list of posts again"
 			echo "  exit      - quit Lurker"
 			;;
 		q|quit|exit|done)
