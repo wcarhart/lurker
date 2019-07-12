@@ -1,4 +1,16 @@
 #!/bin/bash
+
+command -v jq > /dev/null 2>&1
+if [[ $? -ne 0 ]] ; then
+	echo "lurker: err: jq is not installed"
+	echo "  lurker uses 'jq' to process Hacker News API responses"
+	echo "  Please install jq by using one of the following (or similar), depending on your system:"
+	echo "   - 'brew install jq'"
+	echo "   - 'yum install jq'"
+	echo "   - 'apt-get install jq'"
+	exit 1
+fi
+
 echo '.____                  __                 '
 echo '|    |    __ _________|  | __ ___________ '
 echo '|    |   |  |  \_  __ \  |/ // __ \_  __ \'
@@ -14,12 +26,77 @@ POSTS=( ${POSTS//,/ } )
 
 # TODO: improve comments
 # TODO: refactor so it's a bit more readable
-# TODO: standardize colors so we don't have random ANSI sequences laying around
-# TODO: make standard color white
+
+# ---------------- COLORS ---------------- #
+COLORS=1
+if [[ `tput colors` -eq 0 ]] ; then
+	COLORS=0
+fi
+gray() {
+	grey $@
+}
+grey() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[90m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+red() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[91m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+green() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[92m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+yellow() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[93m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+blue() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[94m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+pink() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[95m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+teal() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[96m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+white() {
+	if [[ $COLORS -eq 1 ]] ; then
+		echo -ne "\033[97m$@\033[0m"
+	else
+		echo -ne "$@"
+	fi
+}
+# ---------------- END COLORS ---------------- #
 
 # ---------------- GET POSTS ---------------- #
 # $1 is START_INDEX
 # $2 is END_INDEX
+# $3 is loading text (optional)
 
 LIST=""
 get_posts() {
@@ -37,11 +114,13 @@ _get_posts() {
 		SCORE=`echo $POST | jq .score`
 		TIME=`echo $POST | jq .time`
 		TIME=$(( `date +%s` - $TIME ))
+		URL=`echo $POST | jq .url`
+		URL=`echo $URL | awk -F[/:] '{print $4}'`
 
 		# Append to display list
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
-		LIST="$LIST`clean_text $TITLE`\n"
-		LIST="$LIST   `clean_text $SCORE` points by `clean_text $AUTHOR` `clean_text $TIME` seconds ago | `clean_text $DESCENDANTS` comments\n"
+		LIST="$LIST$(green `clean_text $TITLE`) $(pink "($URL)")\n"
+		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)\n"
 		# TODO: fix time so it's actually readable
 	done
 	echo -ne "\033[2K\033[E"
@@ -53,22 +132,29 @@ _get_posts() {
 # ---------------- GET THREAD ---------------- #
 get_thread() {
 	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
-	CHILDREN=( `echo $POST | jq .kids[]` )
+	CHILDREN=( )
+	if echo "$POST" | jq -e 'has("kids")' > /dev/null; then
+			CHILDREN=( `echo $POST | jq .kids[]` )
+	fi
 	TITLE=`echo $POST | jq .title`
 	DESCENDANTS=`echo $POST | jq .descendants`
 	AUTHOR=`echo $POST | jq .by`
 	SCORE=`echo $POST | jq .score`
 	TIME=`echo $POST | jq .time`
 	TIME=$(( `date +%s` - $TIME ))
+	URL=`echo $POST | jq .url`
+	URL=`echo $URL | awk -F[/:] '{print $4}'`
 
-	echo -e "\033[92m`clean_text $TITLE`\033[0m"
-	echo "`clean_text $SCORE` points by `clean_text $AUTHOR` `clean_text $TIME` seconds ago | `clean_text $DESCENDANTS` comments"
+	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
+	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)"
 	_get_thread 0 "${CHILDREN[@]}"
 	# TODO: add spinner here
 }
 _get_thread() {
 	# TODO: add timestamp
 	# TODO: limit number of comments
+	# TODO: fix indentation
+	# TODO: make comments default to white
 	NUM=$1
 	shift
 	for CHILD in $@ ; do
@@ -79,7 +165,7 @@ _get_thread() {
 		done
 		AUTHOR=`echo "$COMMENT" | jq .by`
 		SCORE=`echo "$COMMENT" | jq .score`
-		echo -e "$INDENT\033[96m`clean_text $AUTHOR`\033[0m:"
+		echo -e "$INDENT$(teal `clean_text $AUTHOR`:)"
 		COMMENT_TEXT=`echo "$COMMENT" | jq .text`
 		clean_text $COMMENT_TEXT | fold -w 80 -s | sed "s/^/$INDENT/"
 		CHILDREN=( )
