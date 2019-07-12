@@ -153,9 +153,8 @@ get_thread() {
 _get_thread() {
 	# TODO: add timestamp
 	# TODO: limit number of comments
-	# TODO: fix indentation
 	# TODO: make comments default to white
-	NUM=$1
+	local NUM=$1
 	shift
 	for CHILD in $@ ; do
 		COMMENT=`curl -s https://hacker-news.firebaseio.com/v0/item/$CHILD.json?print=pretty`
@@ -167,7 +166,7 @@ _get_thread() {
 		SCORE=`echo "$COMMENT" | jq .score`
 		echo -e "$INDENT$(teal `clean_text $AUTHOR`:)"
 		COMMENT_TEXT=`echo "$COMMENT" | jq .text`
-		clean_text $COMMENT_TEXT | fold -w 80 -s | sed "s/^/$INDENT/"
+		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
 		CHILDREN=( )
 		if echo "$COMMENT" | jq -e 'has("kids")' > /dev/null; then
 			CHILDREN=( `echo $COMMENT | jq .kids[]` )
@@ -180,16 +179,23 @@ _get_thread() {
 # ---------------- END GET THREAD ---------------- #
 
 clean_text() {
-	# TODO: clean text more
-	# extract links from <a> tags
-	CONTENT=`echo "$@" | sed \
+	CONTENT=$(echo "$@" | sed \
 	-e 's/^"//' \
 	-e 's/"$//' \
 	-e 's/&gt;/>/g' \
 	-e "s/&#x27;/'/g" \
 	-e 's/&quot;/"/g' \
 	-e 's/<p>/\\\n\\\n/g' \
-	-e 's/<br>/\\\n\\\n/g'`
+	-e 's/<br>/\\\n\\\n/g' \
+	-e 's/<i>/_/g' \
+	-e 's;</i>;_;g' \
+	-e 's/<b>/**/g' \
+	-e 's;</b>;**;g' \
+	-e 's/<strong>/**/g' \
+	-e 's;</strong>;**;g' \
+	-e 's~&#x2F;~/~g' \
+	-e 's~<a .*\(href=\\"[^\\"]*\).*</a>~\1~g' \
+	-e 's~href=\\"~~g')
 	echo -e "$CONTENT"
 }
 
@@ -208,15 +214,18 @@ while : ; do
 	if [[ $? -eq 0 ]] ; then
 		if [[ $KEY -lt 501  && $KEY -gt 0 ]] ; then
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $KEY - 1 ))]}".json?print=pretty`
+			TITLE=`echo $POST | jq .title`
 			DESCENDANTS=`echo $POST | jq .descendants`
 			AUTHOR=`echo $POST | jq .by`
 			SCORE=`echo $POST | jq .score`
 			TIME=`echo $POST | jq .time`
 			TIME=$(( `date +%s` - $TIME ))
+			URL=`echo $POST | jq .url`
+			URL=`echo $URL | awk -F[/:] '{print $4}'`
 
 			echo -ne "${KEY}. "
-			echo "$(clean_text `echo $POST | jq .title`)"
-			echo "   `clean_text $SCORE` points by `clean_text $AUTHOR` `clean_text $TIME` seconds ago | `clean_text $DESCENDANTS` comments"
+			echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
+			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)"
 		else
 			echo "Post index must be between 1 and 500"
 		fi
