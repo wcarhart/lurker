@@ -24,9 +24,6 @@ POSTS="${POSTS//[/}"
 POSTS="${POSTS//]/}"
 POSTS=( ${POSTS//,/ } )
 
-# TODO: improve comments
-# TODO: refactor so it's a bit more readable
-
 # ---------------- COLORS ---------------- #
 COLORS=1
 if [[ `tput colors` -eq 0 ]] ; then
@@ -106,7 +103,7 @@ get_posts() {
 }
 _get_posts() {
 	for i in `seq $1 $2` ; do
-		# Get post info
+		# get post info
 		POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[$i]}".json?print=pretty`
 		TITLE=`echo $POST | jq .title`
 		DESCENDANTS=`echo $POST | jq .descendants`
@@ -117,7 +114,7 @@ _get_posts() {
 		URL=`echo $POST | jq .url`
 		URL=`echo $URL | awk -F[/:] '{print $4}'`
 
-		# Append to display list
+		# append to display list
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
 		LIST="$LIST$(green `clean_text $TITLE`) $(pink "($URL)")\n"
 		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)\n"
@@ -131,6 +128,7 @@ _get_posts() {
 
 # ---------------- GET THREAD ---------------- #
 get_thread() {
+	# get post info
 	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
 	CHILDREN=( )
 	if echo "$POST" | jq -e 'has("kids")' > /dev/null; then
@@ -145,28 +143,40 @@ get_thread() {
 	URL=`echo $POST | jq .url`
 	URL=`echo $URL | awk -F[/:] '{print $4}'`
 
+	# display post header info
 	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
 	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME` "seconds ago |") $(teal `clean_text $DESCENDANTS` comments)"
+
+	# start recursive comment tree traversal for thread
 	_get_thread 0 "${CHILDREN[@]}"
 	# TODO: add spinner here
 }
 _get_thread() {
+	# $0 is the depth of our recursion
+	# $1 is the list of children to traverse
+
 	# TODO: add timestamp
 	# TODO: limit number of comments
 	# TODO: make comments default to white
 	local NUM=$1
 	shift
 	for CHILD in $@ ; do
+		# get comment info
 		COMMENT=`curl -s https://hacker-news.firebaseio.com/v0/item/$CHILD.json?print=pretty`
+		
+		# calculate indent
 		INDENT=""
 		for _ in `seq 0 $NUM` ; do
 			INDENT="$INDENT    "
 		done
+
+		# print comment and it's author
 		AUTHOR=`echo "$COMMENT" | jq .by`
-		SCORE=`echo "$COMMENT" | jq .score`
-		echo -e "$INDENT$(teal `clean_text $AUTHOR`:)"
 		COMMENT_TEXT=`echo "$COMMENT" | jq .text`
+		echo "$INDENT$(teal `clean_text $AUTHOR`:)"
 		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
+
+		# calculate children to continue traversal
 		CHILDREN=( )
 		if echo "$COMMENT" | jq -e 'has("kids")' > /dev/null; then
 			CHILDREN=( `echo $COMMENT | jq .kids[]` )
@@ -199,12 +209,12 @@ clean_text() {
 	echo -e "$CONTENT"
 }
 
+# ---------------- MAIN LOOP ---------------- #
 START_INDEX=0
 END_INDEX=$(( $START_INDEX + 9 ))
 get_posts $START_INDEX $END_INDEX "Getting posts...  "
-
-# ---------------- MAIN LOOP ---------------- #
 PROMPT="\033[2K\033[E> "
+
 while : ; do
 	echo -ne "$PROMPT"
 	IFS='' read KEY
@@ -245,7 +255,7 @@ while : ; do
 			get_thread $ID
 			;;
 		b|back)
-			get_posts $START_INDEX $END_INDEX
+			get_posts $START_INDEX $END_INDEX "Fetching posts again...  "
 			;;
 		m|more)
 			START_INDEX=$(( $END_INDEX + 1 ))
@@ -256,10 +266,13 @@ while : ; do
 			if [[ $START_INDEX -gt 9 ]] ; then
 				END_INDEX=$(( $START_INDEX - 1 ))
 				START_INDEX=$(( $END_INDEX - 9 ))
-				get_posts $START_INDEX $END_INDEX
+				get_posts $START_INDEX $END_INDEX "Fetching previous posts...  "
 			else
 				echo "Post index must be between 1 and 500"
 			fi
+			;;
+		open*)
+			#TODO: implement open in default web browser
 			;;
 		h|help|list)
 			echo "Available commands:"
