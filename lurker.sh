@@ -32,8 +32,7 @@ _get_posts() {
 		LIST="$LIST`clean_text $TITLE`\n"
 		# TODO: add author, timestamp, points
 	done
-	echo -ne "\033[K"
-	echo -ne "\033[E"
+	echo -ne "\033[2K\033[E"
 	echo -ne "$LIST"
 	LIST=""
 }
@@ -124,8 +123,8 @@ while : ; do
 	# if KEY is a command
 	KEY=`echo "$KEY" | tr '[:upper:]' '[:lower:]'`
 	case "$KEY" in
-		show*)
-			ID="${KEY#show*}"
+		read*)
+			ID="${KEY#read*}"
 			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
 			if [[ $? -ne 0 ]] ; then
 				echo "Post index must be between 1 and 500"
@@ -152,15 +151,15 @@ while : ; do
 			;;
 		h|help|list)
 			echo "Available commands:"
-			echo "  (h) help      - show this help menu"
-			echo "  (s) show <ID> - open the comment thread for post ID"
-			echo "  <ID>          - get the title for post ID"
-			echo "  (b) back      - show the previous list of stories again"
-			echo "  (m) more      - show the next 10 posts (up to 500)"
-			echo "  (l) less      - show the previous 10 posts"
-			echo "  (q) exit      - quit Lurker"
+			echo "  help      - show this help menu"
+			echo "  read <ID> - open the comment thread for post ID"
+			echo "  <ID>      - get the title for post ID"
+			echo "  back      - show the previous list of stories again"
+			echo "  more      - show the next 10 posts (up to 500)"
+			echo "  less      - show the previous 10 posts"
+			echo "  exit      - quit Lurker"
 			;;
-		q|quit|exit)
+		q|quit|exit|done)
 			exit 0
 			;;
 		*)
