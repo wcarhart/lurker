@@ -91,28 +91,33 @@ white() {
 # ---------------- END COLORS ---------------- #
 
 # ---------------- GET POSTS ---------------- #
-# $1 is START_INDEX
-# $2 is END_INDEX
-# $3 is loading text (optional)
-
 LIST=""
 get_posts() {
+	# Handle spinner and call function to get posts
+	# $1 is START_INDEX
+	# $2 is END_INDEX
+	# $3 is loading text (optional)
+
 	echo -ne "${3:-"Getting more posts...  "}"
 	_get_posts $1 $2 & \
 	while [ "$(ps a | awk '{print $1}' | grep $!)" ] ; do for X in '-' '/' '|' '\' ; do echo -en "\b$X" ; sleep 0.1 ; done ; done
 }
 _get_posts() {
+	# get posts between START_INDEX and END_INDEX
+	# $1 is START_INDEX
+	# $2 is END_INDEX
+
 	for i in `seq $1 $2` ; do
 		# get post info
 		POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[$i]}".json?print=pretty`
-		TITLE=`echo $POST | jq .title`
-		DESCENDANTS=`echo $POST | jq .descendants`
-		AUTHOR=`echo $POST | jq .by`
-		SCORE=`echo $POST | jq .score`
-		TIME=`echo $POST | jq .time`
+		TITLE=`echo $POST | jq -r .title`
+		DESCENDANTS=`echo $POST | jq -r .descendants`
+		AUTHOR=`echo $POST | jq -r .by`
+		SCORE=`echo $POST | jq -r .score`
+		TIME=`echo $POST | jq -r .time`
 		TIME=$(( `date +%s` - $TIME ))
-		TIME_TEXT=`cleanse_time $TIME`
-		URL=`echo $POST | jq .url`
+		TIME_TEXT=`clean_time $TIME`
+		URL=`echo $POST | jq -r .url`
 		URL=`echo $URL | awk -F[/:] '{print $4}'`
 
 		# append to display list
@@ -126,8 +131,102 @@ _get_posts() {
 }
 # ---------------- END GET POSTS ---------------- #
 
-cleanse_time() {
+# ---------------- GET THREAD ---------------- #
+get_thread() {
+	# Handle spinner and call function to get posts
+	# $1 is the post ID
+
+	# get post info
+	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $1 - 1 ))]}".json?print=pretty`
+	CHILDREN=( )
+	if echo "$POST" | jq -r -e 'has("kids")' > /dev/null; then
+			CHILDREN=( `echo $POST | jq -r .kids[]` )
+	fi
+	TITLE=`echo $POST | jq -r .title`
+	DESCENDANTS=`echo $POST | jq -r .descendants`
+	AUTHOR=`echo $POST | jq -r .by`
+	SCORE=`echo $POST | jq -r .score`
+	TIME=`echo $POST | jq -r .time`
+	TIME=$(( `date +%s` - $TIME ))
+	TIME_TEXT=`clean_time $TIME`
+	URL=`echo $POST | jq -r .url`
+	URL=`echo $URL | awk -F[/:] '{print $4}'`
+
+	# display post header info
+	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
+	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)"
+
+	# start recursive comment tree traversal for thread
+	if [[ $DESCENDANTS -gt 0 ]] ; then
+		echo -ne "${3:-"Fetching $DESCENDANTS comments...  "}"
+		LIST=""
+		_get_thread 0 "${CHILDREN[@]}" & \
+		while [ "$(ps a | awk '{print $1}' | grep $!)" ] ; do for X in '-' '/' '|' '\' ; do echo -en "\b$X" ; sleep 0.1 ; done ; done
+	fi
+}
+_get_thread() {
+	# Intermediate function to handle recursion cleanly
+	# $1 is the depth of recursion for __get_thread
+	# $2 is the list of children to traverse for __get_thread
+
+	LIST=`__get_thread 0 "${CHILDREN[@]}"`
+	echo -ne "\033[2K\033[E"
+	echo -e "$LIST"
+	LIST=""
+}
+__get_thread() {
+	# get comments for thread
+	# $1 is the depth of our recursion
+	# $2 is the list of children to traverse
+
+	# TODO: make comments default to white
+	local NUM=$1
+	shift
+	for CHILD in $@ ; do
+		# get comment info
+		COMMENT=`curl -s https://hacker-news.firebaseio.com/v0/item/$CHILD.json?print=pretty`
+		
+		# calculate indent
+		INDENT=""
+		for _ in `seq 0 $NUM` ; do
+			INDENT="$INDENT    "
+		done
+
+		# get comment information
+		AUTHOR=`echo "$COMMENT" | jq -r .by`
+		COMMENT_TEXT=`echo "$COMMENT" | jq -r .text`
+		TIME=`echo "$COMMENT" | jq -r .time`
+		TIME=$(( `date +%s` - $TIME ))
+		TIME_TEXT=`clean_time $TIME`
+		DELETED=`echo "$COMMENT" | jq -r .deleted`
+		DEAD=`echo "$COMMENT" | jq -r .dead`
+
+		# skip if comment has been deleted
+		if [[ "$DELETED" == "true" || "$DEAD" == "true" ]] ; then
+			continue
+		fi
+
+		# display comment information
+		echo "$INDENT$(teal "`clean_text $AUTHOR`") $(white "|") $(teal "$TIME_TEXT:")"
+		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
+
+		# calculate children to continue traversal
+		CHILDREN=( )
+		if echo "$COMMENT" | jq -r -e 'has("kids")' > /dev/null; then
+			CHILDREN=( `echo $COMMENT | jq -r .kids[]` )
+		fi
+		if [[ ${#CHILDREN[@]} -gt 0 ]] ; then
+			__get_thread $(( $NUM + 1 )) "${CHILDREN[@]}"
+		fi
+	done
+}
+# ---------------- END GET THREAD ---------------- #
+
+# ---------------- CLEAN DATA ---------------- #
+clean_time() {
+	# clean time into a human readable format
 	# $1 is the time elapsed in seconds
+
 	if [[ $TIME -lt 60 ]] ; then
 		if [[ $TIME -eq 1 ]] ; then
 			TIME_TEXT="$TIME second ago"
@@ -159,90 +258,14 @@ cleanse_time() {
 	echo $TIME_TEXT
 }
 
-# ---------------- GET THREAD ---------------- #
-get_thread() {
-	# $1 is the post ID
-
-	# get post info
-	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $1 - 1 ))]}".json?print=pretty`
-	CHILDREN=( )
-	if echo "$POST" | jq -e 'has("kids")' > /dev/null; then
-			CHILDREN=( `echo $POST | jq .kids[]` )
-	fi
-	TITLE=`echo $POST | jq .title`
-	DESCENDANTS=`echo $POST | jq .descendants`
-	AUTHOR=`echo $POST | jq .by`
-	SCORE=`echo $POST | jq .score`
-	TIME=`echo $POST | jq .time`
-	TIME=$(( `date +%s` - $TIME ))
-	TIME_TEXT=`cleanse_time $TIME`
-	URL=`echo $POST | jq .url`
-	URL=`echo $URL | awk -F[/:] '{print $4}'`
-
-	# display post header info
-	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
-	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)"
-
-	# start recursive comment tree traversal for thread
-	_get_thread 0 "${CHILDREN[@]}"
-	# TODO: add spinner here
-}
-_get_thread() {
-	# $1 is the depth of our recursion
-	# $2 is the list of children to traverse
-
-	# TODO: limit number of comments
-	# TODO: make comments default to white
-	local NUM=$1
-	shift
-	for CHILD in $@ ; do
-		# get comment info
-		COMMENT=`curl -s https://hacker-news.firebaseio.com/v0/item/$CHILD.json?print=pretty`
-		
-		# calculate indent
-		INDENT=""
-		for _ in `seq 0 $NUM` ; do
-			INDENT="$INDENT    "
-		done
-
-		# get comment information
-		AUTHOR=`echo "$COMMENT" | jq .by`
-		COMMENT_TEXT=`echo "$COMMENT" | jq .text`
-		TIME=`echo "$COMMENT" | jq .time`
-		TIME=$(( `date +%s` - $TIME ))
-		TIME_TEXT=`cleanse_time $TIME`
-		DELETED=`echo "$COMMENT" | jq .deleted`
-
-		# check if comment has been deleted
-		if [[ "$DELETED" == "true" ]] ; then
-			continue
-		fi
-
-		# display comment information
-		echo "$INDENT$(teal "`clean_text $AUTHOR`") $(white "|") $(teal "$TIME_TEXT:")"
-		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
-
-		# calculate children to continue traversal
-		CHILDREN=( )
-		if echo "$COMMENT" | jq -e 'has("kids")' > /dev/null; then
-			CHILDREN=( `echo $COMMENT | jq .kids[]` )
-		fi
-		if [[ ${#CHILDREN[@]} -gt 0 ]] ; then
-			_get_thread $(( $NUM + 1 )) "${CHILDREN[@]}"
-		fi
-	done
-}
-# ---------------- END GET THREAD ---------------- #
-
 clean_text() {
+	# clean text into terminal friendly format
+	# $@ is the text to clean
+
 	CONTENT=$(echo "$@" | sed \
-	-e 's/^"//' \
-	-e 's/"$//' \
 	-e 's/&gt;/>/g' \
 	-e "s/&#x27;/'/g" \
 	-e 's/&quot;/"/g' \
-	-e 's/<p>/\\\n\\\n/g' \
-	-e 's/<br>/\\\n\\\n/g' \
 	-e 's/<i>/_/g' \
 	-e 's;</i>;_;g' \
 	-e 's/<b>/**/g' \
@@ -251,11 +274,27 @@ clean_text() {
 	-e 's;</strong>;**;g' \
 	-e 's~&#x2F;~/~g' \
 	-e 's~<a .*\(href=\\"[^\\"]*\).*</a>~\1~g' \
-	-e 's~href=\\"~~g')
+	-e 's~href=\\"~~g' \
+	-e 's~<a .*\(href="[^"]*\).*</a>~\1~g' \
+	-e 's~href="~~g')
+	if [[ `uname -s` == "Darwin" ]] ; then
+		CONTENT=$(echo "$CONTENT" | sed \
+		-e 's/<p>/\\\n\\\n/g' \
+		-e 's/<br>/\\\n\\\n/g')
+	else
+		CONTENT=$(echo "$CONTENT" | sed \
+		-e 's/<p>/\n\n/g' \
+		-e 's/<br>/\n\n/g')
+	fi
 	echo -e "$CONTENT"
 }
+# ---------------- END CLEAN DATA ---------------- #
 
 # ---------------- MAIN LOOP ---------------- #
+# MAIN LOOP DESIGN:
+#  1. Display prompt, receive keyboard input
+#  2. Parse input, handle command
+
 START_INDEX=0
 END_INDEX=$(( $START_INDEX + 9 ))
 get_posts $START_INDEX $END_INDEX "Getting posts...  "
@@ -271,14 +310,14 @@ while : ; do
 		if [[ $KEY -lt 501  && $KEY -gt 0 ]] ; then
 			# get post info
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $KEY - 1 ))]}".json?print=pretty`
-			TITLE=`echo $POST | jq .title`
-			DESCENDANTS=`echo $POST | jq .descendants`
-			AUTHOR=`echo $POST | jq .by`
-			SCORE=`echo $POST | jq .score`
-			TIME=`echo $POST | jq .time`
+			TITLE=`echo $POST | jq -r .title`
+			DESCENDANTS=`echo $POST | jq -r .descendants`
+			AUTHOR=`echo $POST | jq -r .by`
+			SCORE=`echo $POST | jq -r .score`
+			TIME=`echo $POST | jq -r .time`
 			TIME=$(( `date +%s` - $TIME ))
-			TIME_TEXT=`cleanse_time $TIME`
-			URL=`echo $POST | jq .url`
+			TIME_TEXT=`clean_time $TIME`
+			URL=`echo $POST | jq -r .url`
 			URL=`echo $URL | awk -F[/:] '{print $4}'`
 
 			# display info
@@ -301,7 +340,7 @@ while : ; do
 				echo "Post index must be a number"
 				continue
 			fi
-			if [[ $ID -lt 0 || $ID -gt 500 ]] ; then
+			if [[ $ID -lt 1 || $ID -gt 500 ]] ; then
 				echo "Post index must be between 1 and 500"
 				continue
 			fi
@@ -336,13 +375,16 @@ while : ; do
 				continue
 			fi
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
-			URL=`echo $POST | jq .url`
+			URL=`echo $POST | jq -r .url`
 			if [[ `uname -s` == "Darwin" ]] ; then
 				open `echo $URL | sed -e 's/"//g'` 
 			else
 				echo "Sorry, can't open a web browser for this operating system. Here's the link you'd like to open:"
 				echo "  $URL" | sed -e 's/"//g'
 			fi
+			;;
+		clear)
+			clear
 			;;
 		h|help|list)
 			echo "Available commands:"
@@ -353,6 +395,7 @@ while : ; do
 			echo "  more      - show the next 10 posts (up to 500)"
 			echo "  less      - show the previous 10 posts"
 			echo "  back      - show the previous list of posts again"
+			echo "  clear     - clear the screen"
 			echo "  exit      - quit Lurker"
 			;;
 		q|quit|exit|done)
@@ -362,7 +405,8 @@ while : ; do
 			if [[ "$KEY" == "" ]] ; then
 				DISP=""
 			else
-				DISP="'$KEY'"
+				KEY=( $KEY )
+				DISP="'${KEY[0]}'"
 			fi
 			echo "Unknown command $DISP"
 			echo "Type 'help' for command list"
