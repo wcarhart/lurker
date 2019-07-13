@@ -21,7 +21,7 @@ Available commands:
   read <ID>   - open the comment thread for post ID
   open <ID>   - open the URL for the post ID in your default browser
   smoosh <ID> - (beta) summarize an article for post ID via smoosh (see https://github.com/wcarhart/smoosh)
-  <ID>        - get the title for post ID
+  <ID>        - get info for post ID
   more        - show the next 10 posts (up to 500)
   less        - show the previous 10 posts
   back        - show the previous list of posts again
