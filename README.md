@@ -4,6 +4,15 @@ A simple terminal client for reading Hacker News, written entirely in bash.
 ### Install
 Just download or clone this repository and run `lurker.sh`!
 
+### Examples
+Read Hacker News headlines...
+
+![lurker demo 1](https://i.imgur.com/v6kNmTb.png)
+
+Read comments for a specific post...
+
+![lurker demo 2](https://i.imgur.com/n68f059.png)
+
 ### Available commands
 ```
 > help
@@ -18,12 +27,3 @@ Available commands:
   clear     - clear the screen
   exit      - quit Lurker
 ```
-
-### Examples
-Read Hacker News headlines...
-
-![lurker demo 1](https://i.imgur.com/v6kNmTb.png)
-
-Read comments for a specific post...
-
-![lurker demo 2](https://i.imgur.com/n68f059.png)
