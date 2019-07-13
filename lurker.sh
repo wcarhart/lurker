@@ -205,12 +205,20 @@ _get_thread() {
 			INDENT="$INDENT    "
 		done
 
-		# print comment and it's author
+		# get comment information
 		AUTHOR=`echo "$COMMENT" | jq .by`
 		COMMENT_TEXT=`echo "$COMMENT" | jq .text`
-		TIME=`echo $POST | jq .time`
+		TIME=`echo "$COMMENT" | jq .time`
 		TIME=$(( `date +%s` - $TIME ))
 		TIME_TEXT=`cleanse_time $TIME`
+		DELETED=`echo "$COMMENT" | jq .deleted`
+
+		# check if comment has been deleted
+		if [[ "$DELETED" == "true" ]] ; then
+			continue
+		fi
+
+		# display comment information
 		echo "$INDENT$(teal "`clean_text $AUTHOR`") $(white "|") $(teal "$TIME_TEXT:")"
 		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
 
