@@ -169,6 +169,8 @@ _get_thread() {
 	# $1 is the depth of recursion for __get_thread
 	# $2 is the list of children to traverse for __get_thread
 
+	# TODO: parallelize curls so it doesn't take so long to load thread
+
 	LIST=`__get_thread 0 "${CHILDREN[@]}"`
 	echo -ne "\033[2K\033[E"
 	echo -e "$LIST"
@@ -179,7 +181,6 @@ __get_thread() {
 	# $1 is the depth of our recursion
 	# $2 is the list of children to traverse
 
-	# TODO: make comments default to white
 	local NUM=$1
 	shift
 	for CHILD in $@ ; do
@@ -208,7 +209,7 @@ __get_thread() {
 
 		# display comment information
 		echo "$INDENT$(teal "`clean_text $AUTHOR`") $(white "|") $(teal "$TIME_TEXT:")"
-		clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"
+		white "`clean_text $COMMENT_TEXT | fold -w 100 -s | sed "s/^/$INDENT/"`\n"
 
 		# calculate children to continue traversal
 		CHILDREN=( )
