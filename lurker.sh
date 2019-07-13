@@ -98,7 +98,7 @@ get_posts() {
 	# $2 is END_INDEX
 	# $3 is loading text (optional)
 
-	echo -ne "${3:-"Getting more posts...  "}"
+	echo -ne "${3:-"Fetching more posts...  "}"
 	_get_posts $1 $2 & \
 	while [ "$(ps a | awk '{print $1}' | grep $!)" ] ; do for X in '-' '/' '|' '\' ; do echo -en "\b$X" ; sleep 0.1 ; done ; done
 }
@@ -297,7 +297,7 @@ clean_text() {
 
 START_INDEX=0
 END_INDEX=$(( $START_INDEX + 9 ))
-get_posts $START_INDEX $END_INDEX "Getting posts...  "
+get_posts $START_INDEX $END_INDEX "Fetching posts...  "
 PROMPT="\033[2K\033[E> "
 
 while : ; do
