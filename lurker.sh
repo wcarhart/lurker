@@ -387,17 +387,44 @@ while : ; do
 		clear)
 			clear
 			;;
+		smoosh*)
+			if [[ ! -f smoosh/smoosh.py ]] ; then
+				echo "Can't find smoosh.py (no such file '`pwd`/smoosh/smoosh.py')"
+				echo "  Download it from here: https://github.com/wcarhart/smoosh"
+				continue
+			fi
+			command -v python3 > /dev/null 2>&1
+			if [[ $? -ne 0 ]] ; then
+				echo "Can't find python3. Is it installed?"
+				continue
+			fi
+			ID="${KEY#smoosh*}"
+			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
+			if [[ $? -ne 0 ]] ; then
+				echo "Post index must be a number"
+				continue
+			fi
+			if [[ $ID -lt 0 || $ID -gt 500 ]] ; then
+				echo "Post index must be between 1 and 500"
+				continue
+			fi
+			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
+			URL=`echo $POST | jq -r .url`
+			ARTICLE_TEXT=`python3 smoosh/smoosh.py -o $URL`
+			white "`clean_text $ARTICLE_TEXT | fold -w 100 -s`\n"
+			;;
 		h|help|list)
 			echo "Available commands:"
-			echo "  help      - show this help menu"
-			echo "  read <ID> - open the comment thread for post ID"
-			echo "  open <ID> - open the URL for the post ID in your default browser"
-			echo "  <ID>      - get the title for post ID"
-			echo "  more      - show the next 10 posts (up to 500)"
-			echo "  less      - show the previous 10 posts"
-			echo "  back      - show the previous list of posts again"
-			echo "  clear     - clear the screen"
-			echo "  exit      - quit Lurker"
+			echo "  help        - show this help menu"
+			echo "  read <ID>   - open the comment thread for post ID"
+			echo "  open <ID>   - open the URL for the post ID in your default browser"
+			echo "  smoosh <ID> - (beta) summarize an article for post ID via smoosh (see https://github.com/wcarhart/smoosh)"
+			echo "  <ID>        - get the title for post ID"
+			echo "  more        - show the next 10 posts (up to 500)"
+			echo "  less        - show the previous 10 posts"
+			echo "  back        - show the previous list of posts again"
+			echo "  clear       - clear the screen"
+			echo "  exit        - quit Lurker"
 			;;
 		q|quit|exit|done)
 			exit 0
