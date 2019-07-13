@@ -419,7 +419,7 @@ while : ; do
 			echo "  read <ID>   - open the comment thread for post ID"
 			echo "  open <ID>   - open the URL for the post ID in your default browser"
 			echo "  smoosh <ID> - (beta) summarize an article for post ID via smoosh (see https://github.com/wcarhart/smoosh)"
-			echo "  <ID>        - get the title for post ID"
+			echo "  <ID>        - get info for post ID"
 			echo "  more        - show the next 10 posts (up to 500)"
 			echo "  less        - show the previous 10 posts"
 			echo "  back        - show the previous list of posts again"
