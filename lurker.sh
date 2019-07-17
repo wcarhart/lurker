@@ -112,6 +112,13 @@ _get_posts() {
 		POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[$i]}".json?print=pretty`
 		TITLE=`echo $POST | jq -r .title`
 		DESCENDANTS=`echo $POST | jq -r .descendants`
+		if [[ "$DESCENDANTS" == "null" ]] ; then
+			DESCENDANTS_TEXT="comments disabled"
+		elif [[ "$DESCENDANTS" -eq 1 ]] ; then
+			DESCENDANTS_TEXT="$DESCENDANTS comment"
+		else
+			DESCENDANTS_TEXT="$DESCENDANTS comments"
+		fi
 		AUTHOR=`echo $POST | jq -r .by`
 		SCORE=`echo $POST | jq -r .score`
 		TIME=`echo $POST | jq -r .time`
@@ -123,7 +130,7 @@ _get_posts() {
 		# append to display list
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
 		LIST="$LIST$(green `clean_text $TITLE`) $(pink "($URL)")\n"
-		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)\n"
+		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)\n"
 	done
 	echo -ne "\033[2K\033[E"
 	echo -ne "$LIST"
@@ -144,6 +151,13 @@ get_thread() {
 	fi
 	TITLE=`echo $POST | jq -r .title`
 	DESCENDANTS=`echo $POST | jq -r .descendants`
+	if [[ "$DESCENDANTS" == "null" ]] ; then
+		DESCENDANTS_TEXT="comments disabled"
+	elif [[ "$DESCENDANTS" -eq 1 ]] ; then
+		DESCENDANTS_TEXT="$DESCENDANTS comment"
+	else
+		DESCENDANTS_TEXT="$DESCENDANTS comments"
+	fi
 	AUTHOR=`echo $POST | jq -r .by`
 	SCORE=`echo $POST | jq -r .score`
 	TIME=`echo $POST | jq -r .time`
@@ -154,14 +168,16 @@ get_thread() {
 
 	# display post header info
 	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
-	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)"
+	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
 
 	# start recursive comment tree traversal for thread
-	if [[ $DESCENDANTS -gt 0 ]] ; then
-		echo -ne "${3:-"Fetching $DESCENDANTS comments...  "}"
-		LIST=""
-		_get_thread 0 "${CHILDREN[@]}" & \
-		while [ "$(ps a | awk '{print $1}' | grep $!)" ] ; do for X in '-' '/' '|' '\' ; do echo -en "\b$X" ; sleep 0.1 ; done ; done
+	if [[ "$DESCENDANTS" != "null" ]] ; then
+		if [[ $DESCENDANTS -gt 0 ]] ; then
+			echo -ne "${3:-"Fetching $DESCENDANTS comments...  "}"
+			LIST=""
+			_get_thread 0 "${CHILDREN[@]}" & \
+			while [ "$(ps a | awk '{print $1}' | grep $!)" ] ; do for X in '-' '/' '|' '\' ; do echo -en "\b$X" ; sleep 0.1 ; done ; done
+		fi
 	fi
 }
 _get_thread() {
@@ -267,6 +283,7 @@ clean_text() {
 	-e 's/&gt;/>/g' \
 	-e "s/&#x27;/'/g" \
 	-e 's/&quot;/"/g' \
+	-e 's/\&amp;/\&/g' \
 	-e 's/<i>/_/g' \
 	-e 's;</i>;_;g' \
 	-e 's/<b>/**/g' \
@@ -313,6 +330,13 @@ while : ; do
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $KEY - 1 ))]}".json?print=pretty`
 			TITLE=`echo $POST | jq -r .title`
 			DESCENDANTS=`echo $POST | jq -r .descendants`
+			if [[ "$DESCENDANTS" == "null" ]] ; then
+				DESCENDANTS_TEXT="comments disabled"
+			elif [[ "$DESCENDANTS" -eq 1 ]] ; then
+				DESCENDANTS_TEXT="$DESCENDANTS comment"
+			else
+				DESCENDANTS_TEXT="$DESCENDANTS comments"
+			fi
 			AUTHOR=`echo $POST | jq -r .by`
 			SCORE=`echo $POST | jq -r .score`
 			TIME=`echo $POST | jq -r .time`
@@ -324,7 +348,7 @@ while : ; do
 			# display info
 			echo -ne "${KEY}. "
 			echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
-			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS` comments)"
+			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
 		else
 			echo "Post index must be between 1 and 500"
 		fi
