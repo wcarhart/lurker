@@ -125,11 +125,15 @@ _get_posts() {
 		TIME=$(( `date +%s` - $TIME ))
 		TIME_TEXT=`clean_time $TIME`
 		URL=`echo $POST | jq -r .url`
-		URL=`echo $URL | awk -F[/:] '{print $4}'`
+		if [[ "$URL" == "null" ]] ; then
+			URL_TEXT=""
+		else
+			URL_TEXT="(`echo $URL | awk -F[/:] '{print $4}'`)"
+		fi
 
 		# append to display list
 		LIST="$LIST`echo -ne "$(( $i + 1 )). "`"
-		LIST="$LIST$(green `clean_text $TITLE`) $(pink "($URL)")\n"
+		LIST="$LIST$(green `clean_text $TITLE`) $(pink "$URL_TEXT")\n"
 		LIST="$LIST   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)\n"
 	done
 	echo -ne "\033[2K\033[E"
@@ -164,10 +168,14 @@ get_thread() {
 	TIME=$(( `date +%s` - $TIME ))
 	TIME_TEXT=`clean_time $TIME`
 	URL=`echo $POST | jq -r .url`
-	URL=`echo $URL | awk -F[/:] '{print $4}'`
+	if [[ "$URL" == "null" ]] ; then
+		URL_TEXT=""
+	else
+		URL_TEXT="(`echo $URL | awk -F[/:] '{print $4}'`)"
+	fi
 
 	# display post header info
-	echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
+	echo "$(green `clean_text $TITLE`) $(pink "$URL_TEXT")"
 	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
 
 	# start recursive comment tree traversal for thread
@@ -343,11 +351,15 @@ while : ; do
 			TIME=$(( `date +%s` - $TIME ))
 			TIME_TEXT=`clean_time $TIME`
 			URL=`echo $POST | jq -r .url`
-			URL=`echo $URL | awk -F[/:] '{print $4}'`
+			if [[ "$URL" == "null" ]] ; then
+				URL_TEXT=""
+			else
+				URL_TEXT="(`echo $URL | awk -F[/:] '{print $4}'`)"
+			fi
 
 			# display info
 			echo -ne "${KEY}. "
-			echo "$(green `clean_text $TITLE`) $(pink "($URL)")"
+			echo "$(green `clean_text $TITLE`) $(pink "$URL_TEXT")"
 			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
 		else
 			echo "Post index must be between 1 and 500"
@@ -401,6 +413,10 @@ while : ; do
 			fi
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
 			URL=`echo $POST | jq -r .url`
+			if [[ "$URL" == "null" ]] ; then
+				echo "No URL specified for this post"
+				continue
+			fi
 			if [[ `uname -s` == "Darwin" ]] ; then
 				open `echo $URL | sed -e 's/"//g'` 
 			else
@@ -450,7 +466,7 @@ while : ; do
 			echo "  clear       - clear the screen"
 			echo "  exit        - quit Lurker"
 			;;
-		q|quit|exit|done)
+		q|quit|exit|done|"/exit"|"/quit"|"/q")
 			exit 0
 			;;
 		*)
