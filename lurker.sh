@@ -306,11 +306,19 @@ clean_text() {
 	if [[ `uname -s` == "Darwin" ]] ; then
 		CONTENT=$(echo "$CONTENT" | sed \
 		-e 's/<p>/\\\n\\\n/g' \
-		-e 's/<br>/\\\n\\\n/g')
+		-e 's/<br>/\\\n\\\n/g' \
+		-e 's/<pre><code>/```\\\n/g' \
+		-e 's;</code></pre>;\\\n```\\\n;g' \
+		-e 's/<code>/```\\\n/g' \
+		-e 's;</code>;\\\n```\\\n;g')
 	else
 		CONTENT=$(echo "$CONTENT" | sed \
 		-e 's/<p>/\n\n/g' \
-		-e 's/<br>/\n\n/g')
+		-e 's/<br>/\n\n/g' \
+		-e 's/<pre><code>/```\n/g' \
+		-e 's;</code></pre>;\n```\n;g' \
+		-e 's/<code>/```\n/g' \
+		-e 's;</code>;\n```\n;g')
 	fi
 	echo -e "$CONTENT"
 }
@@ -362,7 +370,7 @@ while : ; do
 			echo "$(green `clean_text $TITLE`) $(pink "$URL_TEXT")"
 			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
 		else
-			echo "Post index must be between 1 and 500"
+			red "Post index must be between 1 and 500\n"
 		fi
 		continue
 	fi
@@ -374,11 +382,11 @@ while : ; do
 			ID="${KEY#read*}"
 			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
 			if [[ $? -ne 0 ]] ; then
-				echo "Post index must be a number"
+				red "Post index must be a number\n"
 				continue
 			fi
 			if [[ $ID -lt 1 || $ID -gt 500 ]] ; then
-				echo "Post index must be between 1 and 500"
+				red "Post index must be between 1 and 500\n"
 				continue
 			fi
 			get_thread $ID
@@ -397,30 +405,30 @@ while : ; do
 				START_INDEX=$(( $END_INDEX - 9 ))
 				get_posts $START_INDEX $END_INDEX "Fetching previous posts...  "
 			else
-				echo "Post index must be between 1 and 500"
+				red "Post index must be between 1 and 500\n"
 			fi
 			;;
 		open*)
 			ID="${KEY#open*}"
 			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
 			if [[ $? -ne 0 ]] ; then
-				echo "Post index must be a number"
+				red "Post index must be a number\n"
 				continue
 			fi
 			if [[ $ID -lt 0 || $ID -gt 500 ]] ; then
-				echo "Post index must be between 1 and 500"
+				red "Post index must be between 1 and 500\n"
 				continue
 			fi
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
 			URL=`echo $POST | jq -r .url`
 			if [[ "$URL" == "null" ]] ; then
-				echo "No URL specified for this post"
+				red "No URL specified for this post\n"
 				continue
 			fi
 			if [[ `uname -s` == "Darwin" ]] ; then
 				open `echo $URL | sed -e 's/"//g'` 
 			else
-				echo "Sorry, can't open a web browser for this operating system. Here's the link you'd like to open:"
+				red "Sorry, can't open a web browser for this operating system. Here's the link you'd like to open:\n"
 				echo "  $URL" | sed -e 's/"//g'
 			fi
 			;;
@@ -429,23 +437,23 @@ while : ; do
 			;;
 		smoosh*)
 			if [[ ! -f smoosh/smoosh.py ]] ; then
-				echo "Can't find smoosh.py (no such file '`pwd`/smoosh/smoosh.py')"
-				echo "  Download it from here: https://github.com/wcarhart/smoosh"
+				red "Can't find smoosh.py (no such file '`pwd`/smoosh/smoosh.py')\n"
+				red "  Download it from here: https://github.com/wcarhart/smoosh\n"
 				continue
 			fi
 			command -v python3 > /dev/null 2>&1
 			if [[ $? -ne 0 ]] ; then
-				echo "Can't find python3. Is it installed?"
+				red "Can't find python3. Is it installed?\n"
 				continue
 			fi
 			ID="${KEY#smoosh*}"
 			[ -n "$ID" ] && [ "$ID" -eq "$ID" ] 2>/dev/null
 			if [[ $? -ne 0 ]] ; then
-				echo "Post index must be a number"
+				red "Post index must be a number\n"
 				continue
 			fi
 			if [[ $ID -lt 0 || $ID -gt 500 ]] ; then
-				echo "Post index must be between 1 and 500"
+				red "Post index must be between 1 and 500\n"
 				continue
 			fi
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $ID - 1 ))]}".json?print=pretty`
@@ -476,8 +484,8 @@ while : ; do
 				KEY=( $KEY )
 				DISP="'${KEY[0]}'"
 			fi
-			echo "Unknown command $DISP"
-			echo "Type 'help' for command list"
+			red "Unknown command $DISP\n"
+			red "Type 'help' for command list\n"
 			;;
 	esac
 done
