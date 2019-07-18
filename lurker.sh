@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#trap cleanup EXIT
+
 command -v jq > /dev/null 2>&1
 if [[ $? -ne 0 ]] ; then
 	echo "lurker: err: jq is not installed"
@@ -23,6 +25,13 @@ POSTS=`curl -s https://hacker-news.firebaseio.com/v0/topstories.json`
 POSTS="${POSTS//[/}"
 POSTS="${POSTS//]/}"
 POSTS=( ${POSTS//,/ } )
+
+# cleanup trap
+cleanup() {
+	if [[ -d ~/.lurker ]] ; then
+		rm -rf ~/.lurker
+	fi
+}
 
 # ---------------- COLORS ---------------- #
 COLORS=1
@@ -151,9 +160,13 @@ get_thread() {
 	POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $1 - 1 ))]}".json?print=pretty`
 	CHILDREN=( )
 	if echo "$POST" | jq -r -e 'has("kids")' > /dev/null; then
-			CHILDREN=( `echo $POST | jq -r .kids[]` )
+		CHILDREN=( `echo $POST | jq -r .kids[]` )
 	fi
 	TITLE=`echo $POST | jq -r .title`
+	POST_TEXT=""
+	if echo "$POST" | jq -r -e 'has("text")' > /dev/null; then
+		POST_TEXT=`echo "$POST" | jq -r .text`
+	fi
 	DESCENDANTS=`echo $POST | jq -r .descendants`
 	if [[ "$DESCENDANTS" == "null" ]] ; then
 		DESCENDANTS_TEXT="comments disabled"
@@ -177,6 +190,9 @@ get_thread() {
 	# display post header info
 	echo "$(green `clean_text $TITLE`) $(pink "$URL_TEXT")"
 	echo "$(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
+	if [[ "$POST_TEXT" != "" ]] ; then
+		white "`clean_text $POST_TEXT | fold -w 100 -s`\n"
+	fi
 
 	# start recursive comment tree traversal for thread
 	if [[ "$DESCENDANTS" != "null" ]] ; then
@@ -345,6 +361,10 @@ while : ; do
 			# get post info
 			POST=`curl -s https://hacker-news.firebaseio.com/v0/item/"${POSTS[(( $KEY - 1 ))]}".json?print=pretty`
 			TITLE=`echo $POST | jq -r .title`
+			POST_TEXT=""
+			if echo "$POST" | jq -r -e 'has("text")' > /dev/null; then
+				POST_TEXT=`echo "$POST" | jq -r .text`
+			fi
 			DESCENDANTS=`echo $POST | jq -r .descendants`
 			if [[ "$DESCENDANTS" == "null" ]] ; then
 				DESCENDANTS_TEXT="comments disabled"
@@ -369,6 +389,9 @@ while : ; do
 			echo -ne "${KEY}. "
 			echo "$(green `clean_text $TITLE`) $(pink "$URL_TEXT")"
 			echo "   $(blue `clean_text $SCORE` points) $(white by) $(yellow `clean_text $AUTHOR`) $(white `clean_text $TIME_TEXT` "|") $(teal `clean_text $DESCENDANTS_TEXT`)"
+			if [[ "$POST_TEXT" != "" ]] ; then
+				white "`clean_text $POST_TEXT | fold -w 100 -s`\n"
+			fi
 		else
 			red "Post index must be between 1 and 500\n"
 		fi
