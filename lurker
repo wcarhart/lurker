@@ -28,14 +28,8 @@ function __getmasterlist {
 	# $1 is the loading message to use
 	__startspin "${1:-Initializing}"
 	mkdir -p "${HOME}/.lurker"
-	# shellcheck disable=SC2178
-	masterpostlist="$(curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json')"
-	# shellcheck disable=SC2178
-	masterpostlist="${masterpostlist//[/}"
-	# shellcheck disable=SC2178
-	masterpostlist="${masterpostlist//]/}"
-	# shellcheck disable=SC2206
-	masterpostlist=( ${masterpostlist//,/ } )
+	# shellcheck disable=SC2207
+	masterpostlist=( $(curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json' | jq -r '.[]') )
 	__stopspin
 }
 
@@ -227,6 +221,50 @@ function __getindividualpost {
 	echo "${metadataindent}$(__blue "$(__cleantext "$score")" points) $(__white by) $(__yellow "$(__cleantext "$author")") $(__white "$(__cleantext "$timetext")" "|") $(__teal "$(__cleantext "$descendantstext")")"
 }
 # ---------------- END GET POSTS ---------------- #
+
+# ---------------- GET USER ---------------- #
+function __getuser {
+	# get user information
+	# $1 is the user ID
+
+	local id name created createdtime createdtext karma about
+	id="$1"
+
+	__startspin "Searching for user '$id'"
+
+	if [[ "$id" == '' ]] ; then
+		__stopspin
+		__errortext -c "No user ID provided"
+		return 1
+	fi
+
+	user="$(curl -s "https://hacker-news.firebaseio.com/v0/user/${id}.json?print=pretty")"
+	if [[ "$user" == 'null' ]] ; then
+		__stopspin
+		__errortext -c "No such user $id"
+		return 1
+	fi
+
+	name="$(jq -r '.id' <<< "$user")"
+	created="$(jq -r '.created' <<< "$user")"
+	createdtime=$(( $(date +%s) - created ))
+	createdtext="$(__cleantime "$createdtime")"
+	karma="$(jq -r '.karma' <<< "$user")"
+	about="$(jq -r '.about' <<< "$user")"
+
+	__stopspin
+
+	echo "$(__white "User ID:") $(__pink "$(__cleantext "$name")")"
+	echo "$(__white "Karma:") $(__pink "$(__cleantext "$karma")" points)"
+	echo "$(__white "Created:") $(__pink "$(date -r "$created" +'%B %d, %Y') ($createdtext)")"
+	if [[ "$about" != 'null' && "$about" != '' ]] ; then
+		# shellcheck disable=SC2005
+		echo "$(__white "About:")"
+		# shellcheck disable=SC2005
+		echo "$(__pink "$(__cleantext "$about")")" | fold -w "$foldsize" -s | sed "s/^/  /g"
+	fi
+}
+# ---------------- END GET USER ---------------- #
 
 # ---------------- GET THREAD ---------------- #
 function __getthreadpost {
@@ -448,7 +486,7 @@ function __getthreadcomments {
 #  2. Parse input, handle command
 
 function __lurk {
-	local startindex endindex prompt key id disp post url
+	local startindex endindex prompt key id disp post url untouchedkey
 	startindex=0
 	endindex=$(( startindex + 9 ))
 
@@ -478,6 +516,7 @@ function __lurk {
 		fi
 
 		# if key is a command
+		untouchedkey="$key"
 		key="$(tr '[:upper:]' '[:lower:]' <<< "$key")"
 		case "$key" in
 			read*)
@@ -580,6 +619,10 @@ function __lurk {
 					__errortext -c "Sorry, this feature is only available on macOS. Here's the link you'd like to copy:"
 					echo "${url//\"/}"
 				fi
+				;;
+			user*)
+				id="${untouchedkey:5}"
+				__getuser "$id"
 				;;
 			clear)
 				clear
