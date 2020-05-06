@@ -71,7 +71,7 @@ function __clearintermediates {
 
 function __exitcleanly {
 	__stopspin
-	__clearintermediates
+	# __clearintermediates
 }
 
 # ---------------- COLORS ---------------- #
@@ -291,19 +291,24 @@ function __getthreadpost {
 	if [[ "$descendants" != 'null' ]] ; then
 		if [[ $descendants -gt 0 ]] ; then
 			__startspin "Fetching $descendants comments"
-			__startthreadfetch "${children[@]}"
+			__startthreadfetch "$author" "${children[@]}"
 		fi
 	fi
 }
 
 function __startthreadfetch {
 	# Intermediate function to handle recursion cleanly
-	# $1+ is the list of children to traverse for __getthreadcomments
+	# $1 is the post author (OP)
+	# $2+ are the list of children to traverse for __getthreadcomments
 
 	# start concurrent comment requests
-	local pid f
+	local pid f files op
+	op="$1"
+	shift
+
+	# start concurrent comment requests
 	commentpids=()
-	__getthreadcomments 0 "" "$@" &
+	__getthreadcomments 0 "" "$op" "$@" &
 	commentpids=( $! )
 
 	# wait for all comments to be processed
@@ -313,7 +318,8 @@ function __startthreadfetch {
 
 	# display info
 	__stopspin
-	for f in ~/.lurker/* ; do
+	files=( $(__sortcomments "") )
+	for f in "${files[@]}" ; do
 		cat "$f"
 	done
 
@@ -321,16 +327,39 @@ function __startthreadfetch {
 	__clearintermediates
 }
 
+function __sortcomments {
+	# sort a set of processed comments (as filenames)
+	# $1 is the filename prefix
+	local count prefix
+	prefix="$1"
+	shift
+
+	count=0
+	while : ; do
+		if [[ -f ~/.lurker/${prefix}${count} ]] ; then
+			echo "${HOME}/.lurker/${prefix}${count}"
+			if [[ -f ~/.lurker/${prefix}${count}.0 ]] ; then
+				__sortcomments "${prefix}${count}."
+			fi
+		else
+			break
+		fi
+		(( count += 1 ))
+	done
+}
+
 function __getthreadcomments {
 	# get comments for thread
 	# $1 is the depth of our recursion
 	# $2 is the filename prefix
+	# $3 is the post author (OP)
 	# $3+ is the list of children to traverse
 
-	local depth prefix count child comment indent author commenttext time timetext deleted dead children commentfile
+	local depth prefix op count child comment indent author authortext commenttext time timetext deleted dead children commentfile
 	depth="$1"
 	prefix="$2"
-	shift 2
+	op="$3"
+	shift 3
 
 	count=0
 	for child in "$@" ; do
@@ -363,8 +392,14 @@ function __getthreadcomments {
 			commentfile="${prefix}.${count}"
 		fi
 
+		if [[ "$author" == "$op" ]] ; then
+			authortext="$(__yellow "$author") $(__white "|") $(__teal "[OP]")"
+		else
+			authortext="$author"
+		fi
+
 		# display comment information
-		echo "${indent}$(__teal "$(__cleantext "$author")") $(__white "|") $(__teal "$timetext:")" > "${HOME}/.lurker/${commentfile}"
+		echo "${indent}$(__teal "$(__cleantext "$authortext")") $(__white "|") $(__teal "$timetext:")" > "${HOME}/.lurker/${commentfile}"
 		__white "$(__cleantext "$commenttext" | fold -w "$foldsize" -s | sed "s/^/${indent}/")\n" >> "${HOME}/.lurker/${commentfile}"
 
 		# calculate children to continue traversal
@@ -374,7 +409,7 @@ function __getthreadcomments {
 			children=( $(jq -r '.kids[]' <<< "$comment") )
 		fi
 		if [[ ${#children[@]} -gt 0 ]] ; then
-			__getthreadcomments $(( depth + 1 )) "$commentfile" "${children[@]}" &
+			__getthreadcomments $(( depth + 1 )) "$commentfile" "$op" "${children[@]}" &
 			commentpids=( "${commentpids[@]}" $! )
 		fi
 		(( count += 1 ))
