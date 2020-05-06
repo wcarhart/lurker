@@ -316,7 +316,7 @@ function __processpoll {
 			listtext=' ├──'
 		fi
 		text="$(jq -r '.text' <<< "$option")"
-		echo "$(__white "$listtext") $(__pink "${score} ${scoretext}") | $(__white "$(__cleantext "$text")")"
+		echo "$(__white "$listtext") $(__pink "${score} ${scoretext}") $(__white "| $(__cleantext "$text")")"
 		(( count += 1 ))
 	done
 }
