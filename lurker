@@ -633,33 +633,61 @@ function __cleantime {
 
 	if [[ "$time" -lt 60 ]] ; then
 		if [[ "$time" -eq 1 ]] ; then
-			time_text="$time second ago"
+			timetext="$time second ago"
 		else
-			time_text="$time seconds ago"
+			timetext="$time seconds ago"
 		fi
 	elif [[ "$time" -ge 60 && "$time" -lt 3600 ]] ; then
 		time=$(( time / 60 ))
 		if [[ "$time" -eq 1 ]] ; then
-			time_text="$time minute ago"
+			timetext="$time minute ago"
 		else
-			time_text="$time minutes ago"
+			timetext="$time minutes ago"
 		fi
 	elif [[ "$time" -ge 3600 && "$time" -lt 86400 ]]; then
 		time=$(( time / 3600 ))
 		if [[ "$time" -eq 1 ]] ; then
-			time_text="$time hour ago"
+			timetext="$time hour ago"
 		else
-			time_text="$time hours ago"
+			timetext="$time hours ago"
+		fi
+	elif [[ "$time" -ge 86400 && "$time" -lt 604800 ]] ; then
+		time=$(( time / 86400 ))
+		if [[ $time -eq 1 ]] ; then
+			timetext="Yesterday"
+		else
+			timetext="$time days ago"
+		fi
+	elif [[ "$time" -ge 604800 && "$time" -lt 2629746 ]] ; then
+		time=$(( time / 604800 ))
+		if [[ $time -eq 1 ]] ; then
+			timetext="$time week ago"
+		else
+			timetext="$time weeks ago"
+		fi
+	elif [[ "$time" -ge 2629746 && "$time" -lt 31556952 ]] ; then
+		time=$(( time / 2629746 ))
+		if [[ $time -eq 1 ]] ; then
+			timetext="$time month ago"
+		else
+			timetext="$time months ago"
+		fi
+	elif [[ "$time" -ge 31556952 && "$time" -lt 3155695200 ]] ; then
+		time=$(( time / 31556952 ))
+		if [[ $time -eq 1 ]] ; then
+			timetext="$time year ago"
+		else
+			timetext="$time years ago"
 		fi
 	else
-		time=$(( time / 86400 ))
-		if [[ "$time" -eq 1 ]] ; then
-			time_text="$time day ago"
+		time=$(( time / 3155695200 ))
+		if [[ $time -eq 1 ]] ; then
+			timetext="$time century ago"
 		else
-			time_text="$time days ago"
+			timetext="$time centuries ago"
 		fi
 	fi
-	echo "$time_text"
+	echo "$timetext"
 }
 
 function __cleantext {
