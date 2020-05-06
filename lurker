@@ -26,11 +26,13 @@ function __verifyjq {
 
 function __getmasterlist {
 	# get master list of posts (500 total)
+	__startspin "Initializing"
 	mkdir -p "${HOME}/.lurker"
 	masterpostlist="$(curl -s "$apiurl")"
 	masterpostlist="${masterpostlist//[/}"
 	masterpostlist="${masterpostlist//]/}"
 	masterpostlist=( ${masterpostlist//,/ } )
+	__stopspin
 }
 
 function __drawlogo {
@@ -48,8 +50,8 @@ function __startspin {
 	local message X
 	set +m
 	message="$1"
-	echo -ne "$message   "
-	{ while : ; do for X in '┤' '┘' '┴' '└' '├' '┌' '┬' '┐' ; do echo -en "\b$X" ; sleep 0.1 ; done ; done & } 2>/dev/null
+	echo -ne "$message     "
+	{ while : ; do for X in '•  ' '•• ' '•••' ' ••' '  •' '   ' ; do echo -en "\b\b\b$X" ; sleep 0.1 ; done ; done & } 2>/dev/null
 	spinpid=$!
 }
 
@@ -138,7 +140,7 @@ function __getposts {
 	# $2 is end index
 	# $3 is loading text (optional)
 
-	__startspin "${3:-"Fetching more posts..."}"
+	__startspin "${3:-"Fetching more posts"}"
 	__getmultipleposts "$1" "$2"
 }
 
@@ -234,7 +236,7 @@ function __getthreadpost {
 	# Handle spinner and call function to get posts
 	# $1 is the post ID
 
-	__startspin "Fetching post..."
+	__startspin "Fetching post"
 
 	local postid post children title posttext descendants descendantstext author score time timetext url urltext
 	postid="$1"
@@ -284,7 +286,7 @@ function __getthreadpost {
 	# start recursive comment tree traversal for thread
 	if [[ "$descendants" != 'null' ]] ; then
 		if [[ $descendants -gt 0 ]] ; then
-			__startspin "Fetching $descendants comments..."
+			__startspin "Fetching $descendants comments"
 			__startthreadfetch "${children[@]}"
 		fi
 	fi
@@ -384,7 +386,7 @@ function __lurk {
 	startindex=0
 	endindex=$(( startindex + 9 ))
 
-	__getposts "$startindex" "$endindex" "Fetching posts..."
+	__getposts "$startindex" "$endindex" "Fetching posts"
 	prompt="\033[2K\033[E> "
 
 	while : ; do
@@ -424,7 +426,7 @@ function __lurk {
 				__getthreadpost "$id"
 				;;
 			b|back|again)
-				__getposts "$startindex" "$endindex" "Fetching posts again...  "
+				__getposts "$startindex" "$endindex" "Fetching posts again  "
 				;;
 			m|more)
 				startindex=$(( endindex + 1 ))
@@ -435,7 +437,7 @@ function __lurk {
 				if [[ "$startindex" -gt 9 ]] ; then
 					endindex=$(( startindex - 1 ))
 					startindex=$(( endindex - 9 ))
-					__getposts "$startindex" "$endindex" "Fetching previous posts...  "
+					__getposts "$startindex" "$endindex" "Fetching previous posts  "
 				else
 					__errortext -c "Post index must be between 1 and 500"
 				fi
