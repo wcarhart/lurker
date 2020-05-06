@@ -12,8 +12,6 @@ colors=1
 foldsize=100
 commentpids=()
 
-# TODO: remove lurker.old
-
 function __verifyjq {
 	# verify jq is installed
 	# shellcheck disable=SC2091
