@@ -21,12 +21,13 @@ Read comments for a specific post...
 Available commands:
   help        - show this help menu
   read <ID>   - open the comment thread for post ID
-  open <ID>   - open the URL for the post ID in your default browser
-  smoosh <ID> - (beta) summarize an article for post ID via smoosh (see https://github.com/wcarhart/smoosh)
+  open <ID>   - open the URL for the post ID in your default browser (only available on macOS)
+  copy <ID>   - copy the URL for the post ID to the clipboard (only available on macOS)
+  hack <ID>   - open the Hacker News link for the post ID in your default browser (only available on macOS)
   <ID>        - get info for post ID
   more        - show the next 10 posts (up to 500)
   less        - show the previous 10 posts
   back        - show the previous list of posts again
   clear       - clear the screen
-  exit        - quit Lurker
+  exit        - quit lurker
 ```
