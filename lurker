@@ -182,16 +182,12 @@ function __getmultipleposts {
 function __getindividualpost {
 	# Get an individual post
 	# $1 - numerical post ID
-	local postid post title posttext descendants descendantstext author score time timetext url urltext metadataindent
+	local postid post title descendants descendantstext author score time timetext url urltext metadataindent
 	postid="$1"
 
 	# get post data
 	post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $postid - 1 ))]}.json?print=pretty")"
 	title="$(jq -r '.title' <<< "$post")"
-	posttext=
-	if jq -r -e 'has("text")' <<< "$post" > /dev/null ; then
-		posttext="$(jq -r '.text' <<< "$post")"
-	fi
 
 	# determine descendants (number of comments)
 	descendants="$(jq -r '.descendants' <<< "$post")"
@@ -229,9 +225,6 @@ function __getindividualpost {
 	echo -ne "${postid}. "
 	echo "$(__green "$(__cleantext "$title")") $(__pink "$urltext")"
 	echo "${metadataindent}$(__blue "$(__cleantext "$score")" points) $(__white by) $(__yellow "$(__cleantext "$author")") $(__white "$(__cleantext "$timetext")" "|") $(__teal "$(__cleantext "$descendantstext")")"
-	if [[ "$posttext" != "" ]] ; then
-		__white "$(__cleantext "$posttext" | fold -w "$foldsize" -s)\n"
-	fi
 }
 # ---------------- END GET POSTS ---------------- #
 
