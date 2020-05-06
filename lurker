@@ -28,6 +28,7 @@ function __getmasterlist {
 	# $1 is the loading message to use
 	__startspin "${1:-Initializing}"
 	mkdir -p "${HOME}/.lurker"
+	# shellcheck disable=SC2207
 	masterpostlist=( $(curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json' | jq -r '.[]') )
 	__stopspin
 }
@@ -257,7 +258,9 @@ function __getuser {
 	echo "$(__white "Karma:") $(__pink "$(__cleantext "$karma")" points)"
 	echo "$(__white "Created:") $(__pink "$(date -r "$created" +'%B %d, %Y') ($createdtext)")"
 	if [[ "$about" != 'null' && "$about" != '' ]] ; then
+		# shellcheck disable=SC2005
 		echo "$(__white "About:")"
+		# shellcheck disable=SC2005
 		echo "$(__pink "$(__cleantext "$about")")" | fold -w "$foldsize" -s | sed "s/^/  /g"
 	fi
 }
