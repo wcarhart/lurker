@@ -240,7 +240,6 @@ function __getthreadpost {
 
 	# get post info
 	post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $postid - 1 ))]}.json?print=pretty")"
-	# post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/126809.json?print=pretty")"
 	children=()
 	if jq -r -e 'has("kids")' <<< "$post" > /dev/null; then
 		# shellcheck disable=SC2207
@@ -284,6 +283,7 @@ function __getthreadpost {
 	type="$(jq -r '.type' <<< "$post")"
 	if [[ "$type" == 'poll' ]] ; then
 		parts=( "$(jq -r '.parts[]' <<< "$post")" )
+		# shellcheck disable=SC2068
 		__processpoll ${parts[@]}
 	fi
 
