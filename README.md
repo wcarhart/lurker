@@ -34,6 +34,7 @@ Available commands:
   more        - show the next 10 posts (up to 500)
   less        - show the previous 10 posts
   back        - show the previous list of posts again
+  refresh     - refresh the master post list, which will reset the ordering of posts
   clear       - clear the screen
   exit        - quit lurker
 ```
