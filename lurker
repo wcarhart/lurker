@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1003
 
 # shellcheck disable=SC1091
 source koi
@@ -7,7 +8,6 @@ koidescription="Hacker News terminal client"
 
 # internal variables
 masterpostlist=()
-apiurl='https://hacker-news.firebaseio.com/v0/topstories.json'
 spinpid=
 colors=1
 foldsize=100
@@ -28,7 +28,7 @@ function __getmasterlist {
 	__startspin "Initializing"
 	mkdir -p "${HOME}/.lurker"
 	# shellcheck disable=SC2178
-	masterpostlist="$(curl -s "$apiurl")"
+	masterpostlist="$(curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json')"
 	# shellcheck disable=SC2178
 	masterpostlist="${masterpostlist//[/}"
 	# shellcheck disable=SC2178
@@ -39,9 +39,8 @@ function __getmasterlist {
 }
 
 function __drawlogo {
-	echo '.____                  __                 '
+	echo ' ____                  __                 '
 	echo '|    |    __ _________|  | __ ___________ '
-	# shellcheck disable=SC1003
 	echo '|    |   |  |  \_  __ \  |/ // __ \_  __ \'
 	echo '|    |___|  |  /|  | \/    <\  ___/|  | \/'
 	echo '|_______ \____/ |__|  |__|_ \\___  >__|   '
