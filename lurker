@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091
 source koi
 koiname=lurker
 koidescription="Hacker News terminal client"
@@ -26,9 +27,13 @@ function __getmasterlist {
 	# get master list of posts (500 total)
 	__startspin "Initializing"
 	mkdir -p "${HOME}/.lurker"
+	# shellcheck disable=SC2178
 	masterpostlist="$(curl -s "$apiurl")"
+	# shellcheck disable=SC2178
 	masterpostlist="${masterpostlist//[/}"
+	# shellcheck disable=SC2178
 	masterpostlist="${masterpostlist//]/}"
+	# shellcheck disable=SC2206
 	masterpostlist=( ${masterpostlist//,/ } )
 	__stopspin
 }
@@ -36,6 +41,7 @@ function __getmasterlist {
 function __drawlogo {
 	echo '.____                  __                 '
 	echo '|    |    __ _________|  | __ ___________ '
+	# shellcheck disable=SC1003
 	echo '|    |   |  |  \_  __ \  |/ // __ \_  __ \'
 	echo '|    |___|  |  /|  | \/    <\  ___/|  | \/'
 	echo '|_______ \____/ |__|  |__|_ \\___  >__|   '
@@ -71,60 +77,60 @@ function __exitcleanly {
 
 # ---------------- COLORS ---------------- #
 function __gray {
-	grey $@
+	grey "$@"
 }
 function __grey {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[90m$@\033[0m"
+		echo -ne "\033[90m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __red {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[91m$@\033[0m"
+		echo -ne "\033[91m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __green {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[92m$@\033[0m"
+		echo -ne "\033[92m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __yellow {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[93m$@\033[0m"
+		echo -ne "\033[93m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __blue {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[94m$@\033[0m"
+		echo -ne "\033[94m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __pink {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[95m$@\033[0m"
+		echo -ne "\033[95m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __teal {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[96m$@\033[0m"
+		echo -ne "\033[96m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
 }
 function __white {
 	if [[ $colors -eq 1 ]] ; then
-		echo -ne "\033[97m$@\033[0m"
+		echo -ne "\033[97m$*\033[0m"
 	else
 		echo -ne "$@"
 	fi
@@ -147,7 +153,7 @@ function __getmultipleposts {
 	# $1 is startindex
 	# $2 is endindex
 
-	local i index data list num pids pid
+	local i index pids pid
 
 	# start concurrent post requests
 	pids=()
@@ -221,8 +227,8 @@ function __getindividualpost {
 
 	# display info
 	echo -ne "${postid}. "
-	echo "$(__green $(__cleantext "$title")) $(__pink "$urltext")"
-	echo "${metadataindent}$(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))"
+	echo "$(__green "$(__cleantext "$title")") $(__pink "$urltext")"
+	echo "${metadataindent}$(__blue "$(__cleantext "$score")" points) $(__white by) $(__yellow "$(__cleantext "$author")") $(__white "$(__cleantext "$timetext")" "|") $(__teal "$(__cleantext "$descendantstext")")"
 	if [[ "$posttext" != "" ]] ; then
 		__white "$(__cleantext "$posttext" | fold -w "$foldsize" -s)\n"
 	fi
@@ -243,6 +249,7 @@ function __getthreadpost {
 	post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $postid - 1 ))]}.json?print=pretty")"
 	children=()
 	if jq -r -e 'has("kids")' <<< "$post" > /dev/null; then
+		# shellcheck disable=SC2207
 		children=( $(jq -r '.kids[]' <<< "$post") )
 	fi
 	title="$(jq -r '.title' <<< "$post")"
@@ -263,7 +270,7 @@ function __getthreadpost {
 	author="$(jq -r '.by' <<< "$post")"
 	score="$(jq -r '.score' <<< "$post")"
 	time="$(jq -r '.time' <<< "$post")"
-	time=$(( $(date +%s) - $time ))
+	time=$(( $(date +%s) - time ))
 	timetext="$(__cleantime "$time")"
 	url="$(jq -r '.url' <<< "$post")"
 	if [[ "$url" == 'null' ]] ; then
@@ -275,8 +282,8 @@ function __getthreadpost {
 	__stopspin
 
 	# display post header info
-	echo "$(__green $(__cleantext "$title")) $(__pink "$urltext")"
-	echo "$(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))"
+	echo "$(__green "$(__cleantext "$title")") $(__pink "$urltext")"
+	echo "$(__blue "$(__cleantext "$score")" points) $(__white by) $(__yellow "$(__cleantext "$author")") $(__white "$(__cleantext "$timetext")" "|") $(__teal "$(__cleantext "$descendantstext")")"
 	if [[ "$posttext" != "" ]] ; then
 		__white "$(__cleantext "$posttext" | fold -w "$foldsize" -s)\n"
 	fi
@@ -327,13 +334,13 @@ function __getthreadcomments {
 	shift 2
 
 	count=0
-	for child in $@ ; do
+	for child in "$@" ; do
 		# get comment info
 		comment="$(curl -s "https://hacker-news.firebaseio.com/v0/item/$child.json?print=pretty")"
 		
 		# calculate indent
 		indent=
-		for _ in $(seq 0 $depth) ; do
+		for _ in $(seq 0 "$depth") ; do
 			indent="${indent}    "
 		done
 
@@ -341,7 +348,7 @@ function __getthreadcomments {
 		author="$(jq -r '.by' <<< "$comment")"
 		commenttext="$(jq -r '.text' <<< "$comment")"
 		time="$(jq -r '.time' <<< "$comment")"
-		time=$(( $(date +%s) - $time ))
+		time=$(( $(date +%s) - time ))
 		timetext="$(__cleantime $time)"
 		deleted="$(jq -r '.deleted' <<< "$comment")"
 		dead="$(jq -r '.dead' <<< "$comment")"
@@ -364,10 +371,11 @@ function __getthreadcomments {
 		# calculate children to continue traversal
 		children=()
 		if jq -r -e 'has("kids")' <<< "$comment" > /dev/null; then
+			# shellcheck disable=SC2207
 			children=( $(jq -r '.kids[]' <<< "$comment") )
 		fi
 		if [[ ${#children[@]} -gt 0 ]] ; then
-			__getthreadcomments $(( $depth + 1 )) "$commentfile" "${children[@]}" &
+			__getthreadcomments $(( depth + 1 )) "$commentfile" "${children[@]}" &
 			commentpids=( "${commentpids[@]}" $! )
 		fi
 		(( count += 1 ))
@@ -390,7 +398,7 @@ function __lurk {
 	while : ; do
 		echo -ne "$prompt"
 		if [[ "$command" == "" ]] ; then
-			IFS='' read key
+			IFS='' read -r key
 		else
 			key="$command"
 			echo "$command"
@@ -399,6 +407,7 @@ function __lurk {
 
 		# if key is a number
 		[ -n "$key" ] && [ "$key" -eq "$key" ] 2>/dev/null
+		# shellcheck disable=SC2181
 		if [[ $? -eq 0 ]] ; then
 			if [[ $key -lt 501  && $key -gt 0 ]] ; then
 				__getindividualpost "$key"
@@ -414,6 +423,7 @@ function __lurk {
 			read*)
 				id="${key#read*}"
 				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
+				# shellcheck disable=SC2181
 				if [[ $? -ne 0 ]] ; then
 					__errortext -c "Post index must be a number"
 					continue
@@ -444,6 +454,7 @@ function __lurk {
 			open*)
 				id="${key#open*}"
 				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
+				# shellcheck disable=SC2181
 				if [[ $? -ne 0 ]] ; then
 					__errortext -c "Post index must be a number"
 					continue
@@ -459,15 +470,16 @@ function __lurk {
 					continue
 				fi
 				if [[ "$(uname -s)" == *Darwin* ]] ; then
-					open "$(sed -e 's/"//g' <<< "$url")"
+					open "${url//\"/}"
 				else
 					__errortext -c "Sorry, this feature is only available on macOS. Here's the link you'd like to open:"
-					sed -e 's/"//g' <<< "$url"
+					echo "${url//\"/}"
 				fi
 				;;
 			hack*)
 				id="${key#hack*}"
 				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
+				# shellcheck disable=SC2181
 				if [[ $? -ne 0 ]] ; then
 					__errortext -c "Post index must be a number"
 					continue
@@ -478,10 +490,10 @@ function __lurk {
 				fi
 				url="https://news.ycombinator.com/item?id=${masterpostlist[(( $id - 1 ))]}"
 				if [[ "$(uname -s)" == *Darwin* ]] ; then
-					open "$(sed -e 's/"//g' <<< "$url")"
+					open "${url//\"/}"
 				else
 					__errortext -c "Sorry, this feature is only available on macOS. Here's the link you'd like to open:"
-					sed -e 's/"//g' <<< "$url"
+					echo "${url//\"/}"
 				fi
 				;;
 			clear)
@@ -500,7 +512,7 @@ function __lurk {
 				echo "  clear       - clear the screen"
 				echo "  exit        - quit lurker"
 				;;
-			q|e|quit|exit|done|'/exit'|'/quit'|'/q'|'exit()'|'quit()'|'done()'|'.exit'|'.quit'|'.done')
+			q|e|quit|exit|'done'|'/exit'|'/quit'|'/done'|'/q'|'exit()'|'quit()'|'done()'|'.exit'|'.quit'|'.done')
 				echo
 				exit 0
 				;;
@@ -508,6 +520,7 @@ function __lurk {
 				continue
 				;;
 			*)
+				# shellcheck disable=SC2206
 				key=( $key )
 				disp="'${key[0]}'"
 				__errortext -c "Unknown command $disp"
@@ -533,21 +546,21 @@ function __cleantime {
 			time_text="$time seconds ago"
 		fi
 	elif [[ "$time" -ge 60 && "$time" -lt 3600 ]] ; then
-		time=$(( $time / 60 ))
+		time=$(( time / 60 ))
 		if [[ "$time" -eq 1 ]] ; then
 			time_text="$time minute ago"
 		else
 			time_text="$time minutes ago"
 		fi
 	elif [[ "$time" -ge 3600 && "$time" -lt 86400 ]]; then
-		time=$(( $time / 3600 ))
+		time=$(( time / 3600 ))
 		if [[ "$time" -eq 1 ]] ; then
 			time_text="$time hour ago"
 		else
 			time_text="$time hours ago"
 		fi
 	else
-		time=$(( $time / 86400 ))
+		time=$(( time / 86400 ))
 		if [[ "$time" -eq 1 ]] ; then
 			time_text="$time day ago"
 		else
@@ -628,8 +641,11 @@ function __koimain {
 	__addarg "-s" "--silent" "flag" "optional" "" "Do not print the lurker logo when lurker starts"
 	__parseargs "$@"
 
+	# once arguments are parsed, disable exit on errors
 	set +e
 
+	# set up colors
+	# shellcheck disable=SC2154
 	if [[ $nocolors -eq 1 ]] ; then
 		colors=0
 	elif [[ "$(tput colors)" -eq 0 ]] ; then
@@ -637,14 +653,22 @@ function __koimain {
 		return 1
 	fi
 
+	# verify jq is installed
 	__verifyjq
+
+	# determine if should draw logo or not
+	# shellcheck disable=SC2154
 	if [[ $silent -eq 0 ]] ; then
 		__drawlogo
 	fi
+
+	# initialize post list
 	__getmasterlist
 
+	# register cleanup trap
 	trap __exitcleanly EXIT
 
+	# begin lurking :)
 	__lurk
 }
 
