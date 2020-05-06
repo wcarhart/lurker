@@ -318,6 +318,7 @@ function __startthreadfetch {
 
 	# display info
 	__stopspin
+	# shellcheck disable=SC2207
 	files=( $(__sortcomments "") )
 	for f in "${files[@]}" ; do
 		cat "$f"
