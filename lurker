@@ -11,8 +11,6 @@ spinpid=
 colors=1
 foldsize=100
 
-# TODO: fix set -e
-# TODO: DRY out code
 # TODO: parallelize thread fetch
 # TODO: remove lurker.old
 
@@ -28,6 +26,7 @@ function __verifyjq {
 
 function __getmasterlist {
 	# get master list of posts (500 total)
+	mkdir -p "${HOME}/.lurker"
 	masterpostlist="$(curl -s "$apiurl")"
 	masterpostlist="${masterpostlist//[/}"
 	masterpostlist="${masterpostlist//]/}"
@@ -46,7 +45,7 @@ function __drawlogo {
 function __startspin {
 	# start the spinner
 	# $1 message to display with the spinner
-	local message
+	local message X
 	set +m
 	message="$1"
 	echo -ne "$message   "
@@ -143,39 +142,14 @@ function __getmultipleposts {
 	# $1 is startindex
 	# $2 is endindex
 
-	local i post title descendants descendantstext author score time timetext url urltext list
+	local i index data list
 
 	for i in $(seq "$1" "$2") ; do
-		# get post info
-		post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[$i]}.json?print=pretty")"
-		title="$(jq -r '.title' <<< "$post")"
-		descendants="$(jq -r '.descendants' <<< "$post")"
-		if [[ "$descendants" == 'null' ]] ; then
-			descendantstext="comments disabled"
-		elif [[ "$descendants" -eq 1 ]] ; then
-			descendantstext="$descendants comment"
-		else
-			descendantstext="$descendants comments"
-		fi
-
-		# get post metadata
-		author="$(jq -r '.by' <<< "$post")"
-		score="$(jq -r '.score' <<< "$post")"
-		time="$(jq -r '.time' <<< "$post")"
-		time=$(( $(date +%s) - time ))
-		timetext="$(__cleantime "$time")"
-		url="$(jq -r '.url' <<< "$post")"
-		if [[ "$url" == 'null' ]] ; then
-			urltext=
-		else
-			urltext="($(awk -F[/:] '{print $4}' <<< "$url"))"
-		fi
-
-		# append to display list
-		list="${list}$(echo -ne "$(( $i + 1 )). ")"
-		list="${list}$(__green $(__cleantext "$title")) $(__pink "$urltext")\n"
-		list="${list}   $(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))\n"
+		index=$(( i + 1 ))
+		data="$(__getindividualpost "$index")"
+		list="${list}${data}\n"
 	done
+
 	__stopspin
 	echo -ne "\033[2K\033[E"
 	echo -ne "$list"
@@ -183,12 +157,12 @@ function __getmultipleposts {
 
 function __getindividualpost {
 	# Get an individual post
-	# $1 - key (numerical post ID)
-	local post title posttext key descendants descendantstext author score time timetext url urltext
-	key="$1"
+	# $1 - numerical post ID
+	local postid post title posttext descendants descendantstext author score time timetext url urltext metadataindent
+	postid="$1"
 
 	# get post data
-	post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $key - 1 ))]}.json?print=pretty")"
+	post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $postid - 1 ))]}.json?print=pretty")"
 	title="$(jq -r '.title' <<< "$post")"
 	posttext=
 	if jq -r -e 'has("text")' <<< "$post" > /dev/null ; then
@@ -218,18 +192,27 @@ function __getindividualpost {
 		urltext="($(awk -F[/:] '{print $4}' <<< "$url"))"
 	fi
 
+	# determine indent size for metadata
+	if [[ $postid -lt 10 ]] ; then
+		metadataindent='   '
+	elif [[ $postid -lt 100 ]] ; then
+		metadataindent='    '
+	else
+		metadataindent='     '
+	fi
+
 	# display info
-	echo -ne "${key}. "
+	echo -ne "${postid}. "
 	echo "$(__green $(__cleantext "$title")) $(__pink "$urltext")"
-	echo "   $(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))"
+	echo "${metadataindent}$(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))"
 	if [[ "$posttext" != "" ]] ; then
-		__white "$(__cleantext "$posttext" | fold -w 100 -s)\n"
+		__white "$(__cleantext "$posttext" | fold -w "$foldsize" -s)\n"
 	fi
 }
 # ---------------- END GET POSTS ---------------- #
 
 # ---------------- GET THREAD ---------------- #
-function get_thread {
+function __getthreadpost {
 	# Handle spinner and call function to get posts
 	# $1 is the post ID
 
@@ -273,7 +256,7 @@ function get_thread {
 	echo "$(__green $(__cleantext "$title")) $(__pink "$urltext")"
 	echo "$(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))"
 	if [[ "$posttext" != "" ]] ; then
-		__white "$(__cleantext "$posttext" | fold -w 100 -s)\n"
+		__white "$(__cleantext "$posttext" | fold -w "$foldsize" -s)\n"
 	fi
 
 	# start recursive comment tree traversal for thread
@@ -287,19 +270,19 @@ function get_thread {
 
 function __startthreadfetch {
 	# Intermediate function to handle recursion cleanly
-	# $1+ is the list of children to traverse for __getthread
+	# $1+ is the list of children to traverse for __getthreadcoments
 
 	# TODO: parallelize curls so it doesn't take so long to load thread
 
 	local list
 
-	list="$(__getthread 0 "$@")"
+	list="$(__getthreadcoments 0 "$@")"
 	echo -ne "\033[2K\033[E"
 	echo -e "$list"
 	__stopspin
 }
 
-function __getthread {
+function __getthreadcoments {
 	# get comments for thread
 	# $1 is the depth of our recursion
 	# $2 is the list of children to traverse
@@ -323,7 +306,7 @@ function __getthread {
 		commenttext="$(jq -r '.text' <<< "$comment")"
 		time="$(jq -r '.time' <<< "$comment")"
 		time=$(( $(date +%s) - $time ))
-		timetext="$(__cleantime $TIME)"
+		timetext="$(__cleantime $time)"
 		deleted="$(jq -r '.deleted' <<< "$comment")"
 		dead="$(jq -r '.dead' <<< "$comment")"
 
@@ -334,7 +317,7 @@ function __getthread {
 
 		# display comment information
 		echo "${indent}$(__teal "$(__cleantext "$author")") $(__white "|") $(__teal "$timetext:")"
-		__white "$(__cleantext "$commenttext" | fold -w 100 -s | sed "s/^/${indent}/")\n"
+		__white "$(__cleantext "$commenttext" | fold -w "$foldsize" -s | sed "s/^/${indent}/")\n"
 
 		# calculate children to continue traversal
 		children=()
@@ -342,7 +325,7 @@ function __getthread {
 			children=( $(jq -r '.kids[]' <<< "$comment") )
 		fi
 		if [[ ${#children[@]} -gt 0 ]] ; then
-			__getthread $(( $depth + 1 )) "${children[@]}"
+			__getthreadcoments $(( $depth + 1 )) "${children[@]}"
 		fi
 	done
 }
@@ -394,7 +377,7 @@ function __lurk {
 					__errortext -c "Post index must be between 1 and 500"
 					continue
 				fi
-				get_thread "$id"
+				__getthreadpost "$id"
 				;;
 			b|back|again)
 				__getposts "$startindex" "$endindex" "Fetching posts again...  "
@@ -425,11 +408,30 @@ function __lurk {
 					continue
 				fi
 				post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $id - 1 ))]}.json?print=pretty")"
-				url="$(jq -r .url <<< "$post")"
+				url="$(jq -r '.url' <<< "$post")"
 				if [[ "$url" == 'null' ]] ; then
 					__errortext -c "No URL specified for this post"
 					continue
 				fi
+				if [[ "$(uname -s)" == *Darwin* ]] ; then
+					open "$(sed -e 's/"//g' <<< "$url")"
+				else
+					__errortext -c "Sorry, this feature is only available on macOS. Here's the link you'd like to open:"
+					sed -e 's/"//g' <<< "$url"
+				fi
+				;;
+			hack*)
+				id="${key#hack*}"
+				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
+				if [[ $? -ne 0 ]] ; then
+					__errortext -c "Post index must be a number"
+					continue
+				fi
+				if [[ $id -lt 0 || $id -gt 500 ]] ; then
+					__errortext -c "Post index must be between 1 and 500"
+					continue
+				fi
+				url="https://news.ycombinator.com/item?id=${masterpostlist[(( $id - 1 ))]}"
 				if [[ "$(uname -s)" == *Darwin* ]] ; then
 					open "$(sed -e 's/"//g' <<< "$url")"
 				else
@@ -444,7 +446,8 @@ function __lurk {
 				echo "Available commands:"
 				echo "  help        - show this help menu"
 				echo "  read <ID>   - open the comment thread for post ID"
-				echo "  open <ID>   - open the URL for the post ID in your default browser"
+				echo "  open <ID>   - open the URL for the post ID in your default browser (only available on macOS)"
+				echo "  hack <ID>   - open the Hacker News link for the post ID in your default browser (only available on macOS)"
 				echo "  <ID>        - get info for post ID"
 				echo "  more        - show the next 10 posts (up to 500)"
 				echo "  less        - show the previous 10 posts"
@@ -554,16 +557,22 @@ function __cleantext {
 
 function __verifynumber {
 	# verify that an argument is a number
+
+	local returncode
+	returncode=0
+
+	set +e
 	[ -n "$1" ] && [ "$1" -eq "$1" ] 2>/dev/null
-    # shellcheck disable=SC2181
-    if [[ $? -ne 0 ]] ; then
-        __errortext "$koiname: err: argument for '--foldsize' must be an integer"
-        return 1
-    fi
-    if [[ "$1" -lt 80 ]] ; then
-    	__errortext "$koiname: err: minimum fold size is 80"
-    	return 1
-    fi
+	# shellcheck disable=SC2181
+	if [[ $? -ne 0 ]] ; then
+	    __errortext "$koiname: err: argument for '--foldsize' must be an integer"
+	    returncode=1
+	elif [[ "$1" -lt 80 ]] ; then
+		__errortext "$koiname: err: minimum fold size is 80"
+		returncode=1
+	fi
+	set -e
+	return "$returncode"
 }
 
 function __koimain {
