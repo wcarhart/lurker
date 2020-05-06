@@ -10,8 +10,8 @@ apiurl='https://hacker-news.firebaseio.com/v0/topstories.json'
 spinpid=
 colors=1
 foldsize=100
+commentpids=()
 
-# TODO: parallelize thread fetch
 # TODO: remove lurker.old
 
 function __verifyjq {
@@ -60,9 +60,13 @@ function __stopspin {
 	echo -en "\033[2K\r"
 }
 
+function __clearintermediates {
+	rm -rf "${HOME}/.lurker/"*
+}
+
 function __exitcleanly {
 	__stopspin
-	# rm -rf "${HOME}/.lurker/"*
+	__clearintermediates
 }
 
 # ---------------- COLORS ---------------- #
@@ -134,7 +138,7 @@ function __getposts {
 	# $2 is end index
 	# $3 is loading text (optional)
 
-	# __startspin "${3:-"Fetching more posts..."}"
+	__startspin "${3:-"Fetching more posts..."}"
 	__getmultipleposts "$1" "$2"
 }
 
@@ -143,42 +147,30 @@ function __getmultipleposts {
 	# $1 is startindex
 	# $2 is endindex
 
-	# env LC_CTYPE=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32
+	local i index data list num pids pid
 
-	local i index data list num
-
+	# start concurrent post requests
+	pids=()
 	for i in $(seq "$1" "$2") ; do
 		index=$(( i + 1 ))
 		__getindividualpost "$index" > "${HOME}/.lurker/${index}" &
+		pids=( "${pids[@]}" $! )
 	done
 
-	while : ; do
-		num="$(find "${HOME}/.lurker/" -type f | wc -l)"
-		if [[ $num -eq 10 ]] ; then
-			break
-		fi
+	# wait for all posts to be processed
+	for pid in "${pids[@]}" ; do
+		wait "$pid"
 	done
 
-	# set -x
-	echo 'before'
+	# display info
+	__stopspin
 	for i in $(seq "$1" "$2") ; do
 		index=$(( i + 1 ))
-		echo "index: $index"
-		echo "opening: ${HOME}/.lurker/${index}"
 		cat ~/.lurker/${index}
 	done
-	echo 'after'
-	# set +x
 
-	# for i in $(seq "$1" "$2") ; do
-	# 	index=$(( i + 1 ))
-	# 	data="$(__getindividualpost "$index")"
-	# 	list="${list}${data}\n"
-	# done
-
-	# __stopspin
-	# echo -ne "\033[2K\033[E"
-	# echo -ne "$list"
+	# reset working directory
+	__clearintermediates
 }
 
 function __getindividualpost {
@@ -242,6 +234,8 @@ function __getthreadpost {
 	# Handle spinner and call function to get posts
 	# $1 is the post ID
 
+	__startspin "Fetching post..."
+
 	local postid post children title posttext descendants descendantstext author score time timetext url urltext
 	postid="$1"
 
@@ -278,6 +272,8 @@ function __getthreadpost {
 		urltext="($(awk -F[/:] '{print $4}' <<< "$url"))"
 	fi
 
+	__stopspin
+
 	# display post header info
 	echo "$(__green $(__cleantext "$title")) $(__pink "$urltext")"
 	echo "$(__blue $(__cleantext "$score") points) $(__white by) $(__yellow $(__cleantext "$author")) $(__white $(__cleantext "$timetext") "|") $(__teal $(__cleantext "$descendantstext"))"
@@ -288,7 +284,7 @@ function __getthreadpost {
 	# start recursive comment tree traversal for thread
 	if [[ "$descendants" != 'null' ]] ; then
 		if [[ $descendants -gt 0 ]] ; then
-			__startspin "Fetching $descendants comments...  "
+			__startspin "Fetching $descendants comments..."
 			__startthreadfetch "${children[@]}"
 		fi
 	fi
@@ -296,27 +292,41 @@ function __getthreadpost {
 
 function __startthreadfetch {
 	# Intermediate function to handle recursion cleanly
-	# $1+ is the list of children to traverse for __getthreadcoments
+	# $1+ is the list of children to traverse for __getthreadcomments
 
-	# TODO: parallelize curls so it doesn't take so long to load thread
+	# start concurrent comment requests
+	local pid f
+	commentpids=()
+	__getthreadcomments 0 "" "$@" &
+	commentpids=( $! )
 
-	local list
+	# wait for all comments to be processed
+	for pid in "${commentpids[@]}" ; do
+		wait "$pid"
+	done
 
-	list="$(__getthreadcoments 0 "$@")"
-	echo -ne "\033[2K\033[E"
-	echo -e "$list"
+	# display info
 	__stopspin
+	for f in ~/.lurker/* ; do
+		cat "$f"
+	done
+
+	# reset working directory
+	__clearintermediates
 }
 
-function __getthreadcoments {
+function __getthreadcomments {
 	# get comments for thread
 	# $1 is the depth of our recursion
-	# $2 is the list of children to traverse
+	# $2 is the filename prefix
+	# $3+ is the list of children to traverse
 
-	local depth child comment indent author commenttext time timetext deleted dead children
+	local depth prefix count child comment indent author commenttext time timetext deleted dead children commentfile
 	depth="$1"
-	shift
+	prefix="$2"
+	shift 2
 
+	count=0
 	for child in $@ ; do
 		# get comment info
 		comment="$(curl -s "https://hacker-news.firebaseio.com/v0/item/$child.json?print=pretty")"
@@ -341,9 +351,15 @@ function __getthreadcoments {
 			continue
 		fi
 
+		if [[ "$prefix" == "" ]] ; then
+			commentfile="${count}"
+		else
+			commentfile="${prefix}.${count}"
+		fi
+
 		# display comment information
-		echo "${indent}$(__teal "$(__cleantext "$author")") $(__white "|") $(__teal "$timetext:")"
-		__white "$(__cleantext "$commenttext" | fold -w "$foldsize" -s | sed "s/^/${indent}/")\n"
+		echo "${indent}$(__teal "$(__cleantext "$author")") $(__white "|") $(__teal "$timetext:")" > "${HOME}/.lurker/${commentfile}"
+		__white "$(__cleantext "$commenttext" | fold -w "$foldsize" -s | sed "s/^/${indent}/")\n" >> "${HOME}/.lurker/${commentfile}"
 
 		# calculate children to continue traversal
 		children=()
@@ -351,8 +367,10 @@ function __getthreadcoments {
 			children=( $(jq -r '.kids[]' <<< "$comment") )
 		fi
 		if [[ ${#children[@]} -gt 0 ]] ; then
-			__getthreadcoments $(( $depth + 1 )) "${children[@]}"
+			__getthreadcomments $(( $depth + 1 )) "$commentfile" "${children[@]}" &
+			commentpids=( "${commentpids[@]}" $! )
 		fi
+		(( count += 1 ))
 	done
 }
 # ---------------- END GET THREAD ---------------- #
