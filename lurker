@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1003
 
 # shellcheck disable=SC1091
 source koi
@@ -7,7 +8,6 @@ koidescription="Hacker News terminal client"
 
 # internal variables
 masterpostlist=()
-apiurl='https://hacker-news.firebaseio.com/v0/topstories.json'
 spinpid=
 colors=1
 foldsize=100
@@ -28,7 +28,7 @@ function __getmasterlist {
 	__startspin "Initializing"
 	mkdir -p "${HOME}/.lurker"
 	# shellcheck disable=SC2178
-	masterpostlist="$(curl -s "$apiurl")"
+	masterpostlist="$(curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json')"
 	# shellcheck disable=SC2178
 	masterpostlist="${masterpostlist//[/}"
 	# shellcheck disable=SC2178
@@ -39,9 +39,8 @@ function __getmasterlist {
 }
 
 function __drawlogo {
-	echo '.____                  __                 '
+	echo ' ____                  __                 '
 	echo '|    |    __ _________|  | __ ___________ '
-	# shellcheck disable=SC1003
 	echo '|    |   |  |  \_  __ \  |/ // __ \_  __ \'
 	echo '|    |___|  |  /|  | \/    <\  ___/|  | \/'
 	echo '|_______ \____/ |__|  |__|_ \\___  >__|   '
@@ -388,7 +387,7 @@ function __getthreadcomments {
 #  2. Parse input, handle command
 
 function __lurk {
-	local startindex endindex prompt key id disp
+	local startindex endindex prompt key id disp post url
 	startindex=0
 	endindex=$(( startindex + 9 ))
 
@@ -496,6 +495,31 @@ function __lurk {
 					echo "${url//\"/}"
 				fi
 				;;
+			copy*)
+				id="${key#copy*}"
+				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
+				# shellcheck disable=SC2181
+				if [[ $? -ne 0 ]] ; then
+					__errortext -c "Post index must be a number"
+					continue
+				fi
+				if [[ $id -lt 0 || $id -gt 500 ]] ; then
+					__errortext -c "Post index must be between 1 and 500"
+					continue
+				fi
+				post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $id - 1 ))]}.json?print=pretty")"
+				url="$(jq -r '.url' <<< "$post")"
+				if [[ "$url" == 'null' ]] ; then
+					__errortext -c "No URL specified for this post"
+					continue
+				fi
+				if [[ "$(uname -s)" == *Darwin* ]] ; then
+					echo -n "${url//\"/}" | pbcopy
+				else
+					__errortext -c "Sorry, this feature is only available on macOS. Here's the link you'd like to copy:"
+					echo "${url//\"/}"
+				fi
+				;;
 			clear)
 				clear
 				;;
@@ -504,6 +528,7 @@ function __lurk {
 				echo "  help        - show this help menu"
 				echo "  read <ID>   - open the comment thread for post ID"
 				echo "  open <ID>   - open the URL for the post ID in your default browser (only available on macOS)"
+				echo "  copy <ID>   - copy the URL for the post ID to the clipboard (only available on macOS)"
 				echo "  hack <ID>   - open the Hacker News link for the post ID in your default browser (only available on macOS)"
 				echo "  <ID>        - get info for post ID"
 				echo "  more        - show the next 10 posts (up to 500)"
