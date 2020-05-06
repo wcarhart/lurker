@@ -235,7 +235,7 @@ function __getthreadpost {
 
 	__startspin "Fetching post"
 
-	local postid post children title posttext descendants descendantstext author score time timetext url urltext
+	local postid post children title posttext descendants descendantstext author score time timetext url urltext type parts
 	postid="$1"
 
 	# get post info
@@ -280,6 +280,11 @@ function __getthreadpost {
 	if [[ "$posttext" != "" ]] ; then
 		__white "$(__cleantext "$posttext" | fold -w "$foldsize" -s)\n"
 	fi
+	type="$(jq -r '.type' <<< "$post")"
+	if [[ "$type" == 'poll' ]] ; then
+		parts=( "$(jq -r '.parts[]' <<< "$post")" )
+		__processpoll ${parts[@]}
+	fi
 
 	# start recursive comment tree traversal for thread
 	if [[ "$descendants" != 'null' ]] ; then
@@ -288,6 +293,31 @@ function __getthreadpost {
 			__startthreadfetch "$author" "${children[@]}"
 		fi
 	fi
+}
+
+function __processpoll {
+	# show options for poll
+	# $1+ are the poll options
+	local part option score scoretext text count listtext
+
+	count=0
+	for part in "$@" ; do
+		option="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${part}.json?print=pretty")"
+		score="$(jq -r '.score' <<< "$option")"
+		if [[ "$score" -eq 1 ]] ; then
+			scoretext="point"
+		else
+			scoretext="points"
+		fi
+		if [[ "$count" -eq $(( $# - 1 )) ]] ; then
+			listtext=' └──'
+		else
+			listtext=' ├──'
+		fi
+		text="$(jq -r '.text' <<< "$option")"
+		echo "$(__white "$listtext") $(__pink "${score} ${scoretext}") | $(__white "$(__cleantext "$text")")"
+		(( count += 1 ))
+	done
 }
 
 function __startthreadfetch {
@@ -640,7 +670,9 @@ function __cleantext {
 
 	content="$(echo "$@" | sed \
 	-e 's/&gt;/>/g' \
+	-e 's/&#62;/>/g' \
 	-e 's/&lt;/</g' \
+	-e 's/&#60;/</g' \
 	-e "s/&#x27;/'/g" \
 	-e 's/&quot;/"/g' \
 	-e 's/\&amp;/\&/g' \
