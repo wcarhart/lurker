@@ -30,6 +30,7 @@ Available commands:
   open <ID>   - open the URL for the post ID in your default browser (only available on macOS)
   copy <ID>   - copy the URL for the post ID to the clipboard (only available on macOS)
   hack <ID>   - open the Hacker News link for the post ID in your default browser (only available on macOS)
+  user <ID>   - show info for user ID
   <ID>        - get info for post ID
   more        - show the next 10 posts (up to 500)
   less        - show the previous 10 posts
