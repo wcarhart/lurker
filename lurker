@@ -593,6 +593,7 @@ function __cleantext {
 	-e 's~<a .*\(href="[^"]*\).*</a>~\1~g' \
 	-e 's~href="~~g')"
 	if [[ "$(uname -s)" == *Darwin* ]] ; then
+		# shellcheck disable=SC2016
 		content="$(echo "$content" | sed \
 		-e 's/<p>/\\\n\\\n/g' \
 		-e 's/<br>/\\\n\\\n/g' \
@@ -601,6 +602,7 @@ function __cleantext {
 		-e 's/<code>/```\\\n/g' \
 		-e 's;</code>;\\\n```\\\n;g')"
 	else
+		# shellcheck disable=SC2016
 		content="$(echo "$content" | sed \
 		-e 's/<p>/\n\n/g' \
 		-e 's/<br>/\n\n/g' \
