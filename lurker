@@ -71,7 +71,7 @@ function __clearintermediates {
 
 function __exitcleanly {
 	__stopspin
-	# __clearintermediates
+	__clearintermediates
 }
 
 # ---------------- COLORS ---------------- #
