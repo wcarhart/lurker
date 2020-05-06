@@ -145,26 +145,16 @@ function __getmultipleposts {
 	# get posts between startindex and endindex
 	# $1 is startindex
 	# $2 is endindex
-	# $3+ are the absolute post IDs to get (will override startindex and endindex)
 
-	local i index pids pid startindex endindex
-	startindex="$1"
-	endindex="$2"
+	local i index pids pid
 
 	# start concurrent post requests
 	pids=()
-	if [[ "$#" -eq 0 ]] ; then
-		for i in $(seq "$startindex" "$endindex") ; do
-			index=$(( i + 1 ))
-			__getindividualpost "$index" > "${HOME}/.lurker/${index}" &
-			pids=( "${pids[@]}" $! )
-		done
-	else
-		for i in "$@" ; do
-			__getindividualpost "$index" true > "${HOME}/.lurker/${index}" &
-			pids=( "${pids[@]}" $! )
-		done
-	fi
+	for i in $(seq "$1" "$2") ; do
+		index=$(( i + 1 ))
+		__getindividualpost "$index" > "${HOME}/.lurker/${index}" &
+		pids=( "${pids[@]}" $! )
+	done
 
 	# wait for all posts to be processed
 	for pid in "${pids[@]}" ; do
@@ -173,7 +163,7 @@ function __getmultipleposts {
 
 	# display info
 	__stopspin
-	for i in $(seq "$startindex" "$endindex") ; do
+	for i in $(seq "$1" "$2") ; do
 		index=$(( i + 1 ))
 		cat ~/.lurker/${index}
 	done
@@ -185,17 +175,11 @@ function __getmultipleposts {
 function __getindividualpost {
 	# Get an individual post
 	# $1 - numerical post ID
-	# $2 - true to use masterlist, false to use absolute ID
-	local postid absolute post title descendants descendantstext author score time timetext url urltext metadataindent
+	local postid post title descendants descendantstext author score time timetext url urltext metadataindent
 	postid="$1"
-	absolute="$2"
 
 	# get post data
-	if [[ "$absolute" == 'true' ]] ; then
-		post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${postid}.json?print=pretty")"
-	else
-		post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $postid - 1 ))]}.json?print=pretty")"
-	fi
+	post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $postid - 1 ))]}.json?print=pretty")"
 	title="$(jq -r '.title' <<< "$post")"
 
 	# determine descendants (number of comments)
@@ -242,7 +226,7 @@ function __getuser {
 	# get user information
 	# $1 is the user ID
 
-	local id name created createdtime createdtext karma about userposts
+	local id name created createdtime createdtext karma about
 	id="$1"
 
 	__startspin "Searching for user '$id'"
@@ -275,12 +259,6 @@ function __getuser {
 	if [[ "$about" != 'null' && "$about" != '' ]] ; then
 		echo "$(__white "About:")"
 		echo "$(__pink "$(__cleantext "$about")")" | fold -w "$foldsize" -s | sed "s/^/  /g"
-	fi
-
-	userposts=( $(jq -r '.submitted[]' <<< "$user") )
-	if [[ "$userposts" != 'null' && "$userposts" != '' ]] ; then
-		echo "$(__white "Recent posts:")"
-		__getposts 0 9 "Fetching ${name}'s posts" "$"
 	fi
 }
 # ---------------- END GET USER ---------------- #
