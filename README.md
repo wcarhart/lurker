@@ -2,9 +2,15 @@
 A simple terminal client for reading Hacker News, written entirely in bash.
 
 ### Install
-Install with [Homebrew](https://brew.sh): `brew install wcarhart/tools/lurker`.
+Install with [Homebrew](https://brew.sh):
+```bash
+brew install wcarhart/tools/lurker
+```
 
-Or, download or clone this repository and run `./lurker`.
+Or, download or clone this repository and run:
+```bash
+./lurker
+```
 
 ### Examples
 Read Hacker News headlines...
