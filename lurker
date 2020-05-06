@@ -62,6 +62,7 @@ function __stopspin {
 
 function __exitcleanly {
 	__stopspin
+	# rm -rf "${HOME}/.lurker/"*
 }
 
 # ---------------- COLORS ---------------- #
@@ -133,7 +134,7 @@ function __getposts {
 	# $2 is end index
 	# $3 is loading text (optional)
 
-	__startspin "${3:-"Fetching more posts..."}"
+	# __startspin "${3:-"Fetching more posts..."}"
 	__getmultipleposts "$1" "$2"
 }
 
@@ -142,17 +143,42 @@ function __getmultipleposts {
 	# $1 is startindex
 	# $2 is endindex
 
-	local i index data list
+	# env LC_CTYPE=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32
+
+	local i index data list num
 
 	for i in $(seq "$1" "$2") ; do
 		index=$(( i + 1 ))
-		data="$(__getindividualpost "$index")"
-		list="${list}${data}\n"
+		__getindividualpost "$index" > "${HOME}/.lurker/${index}" &
 	done
 
-	__stopspin
-	echo -ne "\033[2K\033[E"
-	echo -ne "$list"
+	while : ; do
+		num="$(find "${HOME}/.lurker/" -type f | wc -l)"
+		if [[ $num -eq 10 ]] ; then
+			break
+		fi
+	done
+
+	# set -x
+	echo 'before'
+	for i in $(seq "$1" "$2") ; do
+		index=$(( i + 1 ))
+		echo "index: $index"
+		echo "opening: ${HOME}/.lurker/${index}"
+		cat ~/.lurker/${index}
+	done
+	echo 'after'
+	# set +x
+
+	# for i in $(seq "$1" "$2") ; do
+	# 	index=$(( i + 1 ))
+	# 	data="$(__getindividualpost "$index")"
+	# 	list="${list}${data}\n"
+	# done
+
+	# __stopspin
+	# echo -ne "\033[2K\033[E"
+	# echo -ne "$list"
 }
 
 function __getindividualpost {
