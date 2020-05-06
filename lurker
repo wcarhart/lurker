@@ -395,6 +395,7 @@ function __lurk {
 			IFS='' read key
 		else
 			key="$command"
+			echo "$command"
 			command=
 		fi
 
@@ -637,8 +638,6 @@ function __koimain {
 		__errortext "$koiname: err: colors are not supported on this terminal"
 		return 1
 	fi
-
-	foldsize="$foldsize"
 
 	__verifyjq
 	if [[ $silent -eq 0 ]] ; then
