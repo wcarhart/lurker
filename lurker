@@ -25,7 +25,8 @@ function __verifyjq {
 
 function __getmasterlist {
 	# get master list of posts (500 total)
-	__startspin "Initializing"
+	# $1 is the loading message to use
+	__startspin "${1:-Initializing}"
 	mkdir -p "${HOME}/.lurker"
 	# shellcheck disable=SC2178
 	masterpostlist="$(curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json')"
@@ -559,6 +560,12 @@ function __lurk {
 			clear)
 				clear
 				;;
+			refresh)
+				__getmasterlist "Refreshing"
+				startindex=0
+				endindex=$(( startindex + 9 ))
+				__getposts "$startindex" "$endindex" "Fetching posts"
+				;;
 			h|help|list)
 				echo "Available commands:"
 				echo "  help        - show this help menu"
@@ -570,6 +577,7 @@ function __lurk {
 				echo "  more        - show the next 10 posts (up to 500)"
 				echo "  less        - show the previous 10 posts"
 				echo "  back        - show the previous list of posts again"
+				echo "  refresh     - refresh the master post list, which will reset the ordering of posts"
 				echo "  clear       - clear the screen"
 				echo "  exit        - quit lurker"
 				;;
