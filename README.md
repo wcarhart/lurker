@@ -1,5 +1,13 @@
-# [lurker](https://www.techopedia.com/definition/8155/lurker)
-A simple terminal client for reading Hacker News, written entirely in bash.
+<p align="center"><img alt="lurker logo" src="logo.png" /></p>
+
+<h1 align="center">lurker</h1>
+<h5 align="center">Hacker News terminal client</h5>
+
+### Overview
+Lurker is a simple terminal client for reading [Hacker News](https://news.ycombinator.com/), written entirely in bash.
+
+### Documentation
+Please visit the [documentation site](https://willcarhart.dev/docs/lurker) for full documentation.
 
 ### Install
 Install with [Homebrew](https://brew.sh):
