@@ -482,10 +482,9 @@ function __getthreadcomments {
 # ---------------- END GET THREAD ---------------- #
 
 # ---------------- MAIN LOOP ---------------- #
-#  1. Display prompt, receive keyboard input
-#  2. Parse input, handle command
-
 function __lurk {
+	# start REPL
+	
 	local startindex endindex prompt key id disp post url untouchedkey
 	startindex=0
 	endindex=$(( startindex + 9 ))
