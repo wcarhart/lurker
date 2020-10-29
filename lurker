@@ -485,7 +485,7 @@ function __getthreadcomments {
 function __lurk {
 	# start REPL
 	
-	local startindex endindex prompt key id disp post url untouchedkey
+	local startindex endindex prompt key id disp post url untouchedkey smooshoutput
 	startindex=0
 	endindex=$(( startindex + 9 ))
 
@@ -574,6 +574,49 @@ function __lurk {
 					echo "${url//\"/}"
 				fi
 				;;
+			smoosh*)
+				if [[ "$(uname -s)" != *Darwin* ]] ; then
+					__errortext -c "Sorry, this feature is only available on macOS. Learn more about smoosh: https://github.com/wcarhart/smoosh"
+					continue
+				fi
+				# verify smoosh is installed
+				# https://github.com/wcarhart/smoosh
+				if ! type smoosh > /dev/null 2>&1 ; then
+					__errortext -c "Smoosh is not currently installed."
+					__errortext -c ""
+					__errortext -c "Smoosh is a CLI tool for summarizing text. Lurker uses smoosh to summarize HN"
+					__errortext -c "articles, but does not ship with smoosh pre-installed because it is an optional"
+					__errortext -c "feature. Please install smoosh manually to use it. Learn more about smoosh:"
+					__errortext -c "https://github.com/wcarhart/smoosh"
+					__errortext -c ""
+					__errortext -c "You can install smoosh with:"
+					__errortext -c "  brew install wcarhart/tools/smoosh"
+					continue
+				fi
+				id="${key#smoosh*}"
+				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
+				# shellcheck disable=SC2181
+				if [[ $? -ne 0 ]] ; then
+					__errortext -c "Post index must be a number"
+					continue
+				fi
+				if [[ $id -lt 0 || $id -gt 500 ]] ; then
+					__errortext -c "Post index must be between 1 and 500"
+					continue
+				fi
+				post="$(curl -s "https://hacker-news.firebaseio.com/v0/item/${masterpostlist[(( $id - 1 ))]}.json?print=pretty")"
+				url="$(jq -r '.url' <<< "$post")"
+				if [[ "$url" == 'null' ]] ; then
+					__errortext -c "No URL specified for this post"
+					continue
+				fi
+				if smooshoutput="$(smoosh --quiet --sentence-limit 7 "${url//\"/}")" ; then
+					# shellcheck disable=SC2005
+					echo "$(__green "$smooshoutput")" | fold -w "$foldsize" -s
+				else
+					__errortext -c "$smooshoutput"
+				fi
+				;;
 			hack*)
 				id="${key#hack*}"
 				[ -n "$id" ] && [ "$id" -eq "$id" ] 2>/dev/null
@@ -639,6 +682,7 @@ function __lurk {
 				echo "  open <ID>   - open the URL for the post ID in your default browser (only available on macOS)"
 				echo "  copy <ID>   - copy the URL for the post ID to the clipboard (only available on macOS)"
 				echo "  hack <ID>   - open the Hacker News link for the post ID in your default browser (only available on macOS)"
+				echo "  smoosh <ID> - summarize (smoosh) the content from the URL for post ID (only available on macOS)"
 				echo "  user <ID>   - show info for user ID"
 				echo "  <ID>        - get info for post ID"
 				echo "  more        - show the next 10 posts (up to 500)"

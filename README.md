@@ -38,6 +38,7 @@ Available commands:
   open <ID>   - open the URL for the post ID in your default browser (only available on macOS)
   copy <ID>   - copy the URL for the post ID to the clipboard (only available on macOS)
   hack <ID>   - open the Hacker News link for the post ID in your default browser (only available on macOS)
+  smoosh <ID> - summarize (smoosh) the content from the URL for post ID (only available on macOS)
   user <ID>   - show info for user ID
   <ID>        - get info for post ID
   more        - show the next 10 posts (up to 500)
@@ -47,3 +48,4 @@ Available commands:
   clear       - clear the screen
   exit        - quit lurker
 ```
+Learn more about [smoosh](https://github.com/wcarhart/smoosh).
