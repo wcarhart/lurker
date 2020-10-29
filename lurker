@@ -582,13 +582,15 @@ function __lurk {
 				# verify smoosh is installed
 				# https://github.com/wcarhart/smoosh
 				if ! type smoosh > /dev/null 2>&1 ; then
-					__errortext -c "Smoosh is not currently installed. Smoosh is a CLI for summarizing text. Lurker uses smooosh to summarize HN articles."
-					__errortext -c "Lurker does not ship with smoosh pre-installed because it is an optional feature. Please install smoosh before continuing."
+					__errortext -c "Smoosh is not currently installed."
+					__errortext -c ""
+					__errortext -c "Smoosh is a CLI tool for summarizing text. Lurker uses smoosh to summarize HN"
+					__errortext -c "articles, but does not ship with smoosh pre-installed because it is an optional"
+					__errortext -c "feature. Please install smoosh manually to use it. Learn more about smoosh:"
+					__errortext -c "https://github.com/wcarhart/smoosh"
 					__errortext -c ""
 					__errortext -c "You can install smoosh with:"
 					__errortext -c "  brew install wcarhart/tools/smoosh"
-					__errortext -c ""
-					__errortext -c "Read more: https://github.com/wcarhart/smoosh"
 					continue
 				fi
 				id="${key#smoosh*}"
@@ -608,7 +610,7 @@ function __lurk {
 					__errortext -c "No URL specified for this post"
 					continue
 				fi
-				if smooshoutput="$(smoosh --omit-metrics --sentence-limit 7 "${url//\"/}")" ; then
+				if smooshoutput="$(smoosh --quiet --sentence-limit 7 "${url//\"/}")" ; then
 					# shellcheck disable=SC2005
 					echo "$(__green "$smooshoutput")" | fold -w "$foldsize" -s
 				else
